@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "181753653554",
+    "project_id": "fantastar-1a5bc",
+    "storage_bucket": "fantastar-1a5bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:181753653554:android:3ee0ea4ea38fd5f9c0cf2b",
+        "android_client_info": {
+          "package_name": "com.fantastar.frontend_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXAkAIGgKGPdFZqdPf5xv9tMemiOc6YxM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

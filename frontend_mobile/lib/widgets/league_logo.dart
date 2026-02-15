@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+
+/// Mappa loghi predefiniti per le leghe (icone Material).
+const Map<String, IconData> leagueLogos = {
+  'trophy': Icons.emoji_events,
+  'star': Icons.star,
+  'shield': Icons.shield,
+  'football': Icons.sports_soccer,
+  'crown': Icons.workspace_premium,
+  'fire': Icons.local_fire_department,
+  'bolt': Icons.bolt,
+  'diamond': Icons.diamond,
+};
+
+/// Colore associato a ogni logo.
+const Map<String, Color> leagueLogoColors = {
+  'trophy': Colors.amber,
+  'star': Colors.orange,
+  'shield': Colors.blue,
+  'football': Colors.green,
+  'crown': Colors.purple,
+  'fire': Colors.red,
+  'bolt': Colors.yellow,
+  'diamond': Colors.cyan,
+};
+
+/// Chiavi ordinate per la griglia di selezione (stesso ordine delle mappe).
+const List<String> leagueLogoKeys = [
+  'trophy', 'star', 'shield', 'football', 'crown', 'fire', 'bolt', 'diamond',
+];
+
+/// Widget riutilizzabile: cerchio con icona colorata per il logo della lega.
+/// Usare ovunque si mostri il nome della lega (lista, dettaglio, header, classifica).
+class LeagueLogo extends StatelessWidget {
+  const LeagueLogo({
+    super.key,
+    required this.logoKey,
+    this.size = 40,
+  });
+
+  final String logoKey;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final key = leagueLogos.containsKey(logoKey) ? logoKey : 'trophy';
+    final iconData = leagueLogos[key]!;
+    final color = leagueLogoColors[key] ?? Colors.amber;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Icon(iconData, color: color, size: size * 0.6),
+      ),
+    );
+  }
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyCMW147-qzKkz11lqo6Kj5pn89FBMEEO2I</string>
+	<key>GCM_SENDER_ID</key>
+	<string>181753653554</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.fantastar.frontendMobile</string>
+	<key>PROJECT_ID</key>
+	<string>fantastar-1a5bc</string>
+	<key>STORAGE_BUCKET</key>
+	<string>fantastar-1a5bc.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:181753653554:ios:df926848b3019000c0cf2b</string>
+</dict>
+</plist>
