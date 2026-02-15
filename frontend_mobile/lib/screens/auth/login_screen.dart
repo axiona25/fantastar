@@ -188,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 Center(
                   child: Text(
-                    'Fantastar - All rights reserved v1.0',
+                    'Fantastar - All rights reserved v1.0.1',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: AppColors.textGrey,
