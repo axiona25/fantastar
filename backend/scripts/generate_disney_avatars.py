@@ -2,15 +2,16 @@
 """
 Genera avatar stile Disney/Pixar con OpenAI gpt-image-1 (image-to-image).
 Usa SOLO endpoint /v1/images/edits: client.images.edit oppure HTTP diretto.
-Salva in static/avatars/{id}.png.
+Salva in static/media/avatars/{id}.png.
 
 SETUP: pip install openai
 
 Uso:
-  --test      : 10 giocatori (249, 306, 100, 150, 200, 300, 400, 500, 600, 50)
-  --all       : tutti i giocatori con foto
-  --ids       : ID specifici (es. --ids 249,306)
-  --api-key   : API key OpenAI (altrimenti env o backend/secrets/openai_api_key.txt)
+  --test            : 10 giocatori di test
+  --all             : tutti i giocatori con foto
+  --ids             : ID specifici (es. --ids 249,306)
+  --api-key         : API key OpenAI (altrimenti env o backend/secrets/openai_api_key.txt)
+  --no-skip-existing : processa anche chi ha già avatar (default: salta esistenti)
 
 """
 from __future__ import annotations
@@ -31,12 +32,18 @@ logger = logging.getLogger(__name__)
 
 PHOTOS_DIR = backend_dir / "static" / "photos"
 CROPPED_DIR = PHOTOS_DIR / "cropped"
-AVATARS_DIR = backend_dir / "static" / "avatars"
+MEDIA_DIR = backend_dir / "static" / "media"
+AVATARS_DIR = MEDIA_DIR / "avatars"
+LEAGUE_BADGES_DIR = MEDIA_DIR / "league_badges"
+TEAM_BADGES_DIR = MEDIA_DIR / "team_badges"
+CARDS_DIR = MEDIA_DIR / "cards"
 SECRETS_DIR = backend_dir / "secrets"
 OPENAI_KEY_FILE = SECRETS_DIR / "openai_api_key.txt"
-SLEEP_BETWEEN = 3
-RETRY_AFTER_RATE_LIMIT = 30
+SLEEP_BETWEEN = 2
+RETRY_AFTER_RATE_LIMIT = 60
 MAX_ATTEMPTS = 3
+RETRY_BACKOFF = [5, 15, 30]  # secondi prima di retry 1, 2, 3
+HTTP_TIMEOUT = 120.0
 COST_PER_IMAGE = 0.04
 
 TEST_IDS = [249, 306, 100, 150, 200, 300, 400, 500, 600, 50]
@@ -203,7 +210,7 @@ def get_client(api_key: str | None):
             "Fornisci la chiave OpenAI: --api-key, env OPENAI_API_KEY, "
             f"oppure salvala in {OPENAI_KEY_FILE}"
         )
-    return __import__("openai").OpenAI(api_key=key)
+    return __import__("openai").OpenAI(api_key=key, timeout=HTTP_TIMEOUT)
 
 
 def get_players_from_db(mode: str, id_list: list[int] | None) -> list[dict]:
@@ -269,7 +276,7 @@ def _response_to_bytes(response_or_json) -> bytes | None:
         if getattr(item, "b64_json", None):
             return base64.b64decode(item.b64_json)
         if getattr(item, "url", None):
-            with httpx.Client(timeout=60.0) as h:
+            with httpx.Client(timeout=HTTP_TIMEOUT) as h:
                 r = h.get(item.url)
                 r.raise_for_status()
                 return r.content
@@ -278,7 +285,7 @@ def _response_to_bytes(response_or_json) -> bytes | None:
         if item.get("b64_json"):
             return base64.b64decode(item["b64_json"])
         if item.get("url"):
-            with httpx.Client(timeout=60.0) as h:
+            with httpx.Client(timeout=HTTP_TIMEOUT) as h:
                 r = h.get(item["url"])
                 r.raise_for_status()
                 return r.content
@@ -299,7 +306,7 @@ STYLE REQUIREMENTS:
 
 COMPOSITION:
 - Frontal view, half-body portrait showing head, neck, and upper chest/shoulders
-- Plain white to very light grey gradient background
+- Plain solid white background (single flat color, no gradient) to allow clean background removal
 - Slight friendly expression, natural and confident
 - The character wears a simple {jersey_color} V-neck soccer jersey with NO logos, NO text, NO badges, NO numbers
 
@@ -330,6 +337,7 @@ def generate_avatar(photo_path: Path, jersey_color: str, api_key: str, client) -
                 image=img_file,
                 prompt=prompt,
                 size="1024x1024",
+                background="transparent",
             )
         print("  SUCCESSO: gpt-image-1 images.edit")
         out = _response_to_bytes(response)
@@ -350,9 +358,10 @@ def generate_avatar(photo_path: Path, jersey_color: str, api_key: str, client) -
                 "model": "gpt-image-1",
                 "prompt": _edit_prompt(jersey_color),
                 "size": "1024x1024",
+                "background": "transparent",
             }
-            with httpx.Client(timeout=120.0) as h:
-                resp = h.post(url, headers=headers, files=files, data=data)
+            with httpx.Client(timeout=HTTP_TIMEOUT) as h:
+                resp = h.post(url, headers=headers, files=files, data=data, timeout=HTTP_TIMEOUT)
         if resp.status_code != 200:
             raise Exception(f"HTTP {resp.status_code}: {resp.text[:500]}")
         print("  SUCCESSO: HTTP diretto")
@@ -401,24 +410,40 @@ def run_one(client, player: dict, api_key: str) -> tuple[bool, str | None]:
 
     jersey = get_jersey_color(team_name)
     for attempt in range(MAX_ATTEMPTS):
+        if attempt > 0:
+            backoff = RETRY_BACKOFF[attempt - 1]
+            print(f"  Retry {attempt}/{MAX_ATTEMPTS} tra {backoff}s...")
+            time.sleep(backoff)
         try:
             image_bytes, err = generate_avatar(path, jersey, api_key, client)
             if err:
+                err_str = err.lower()
+                if "429" in err_str or "rate" in err_str:
+                    if attempt < MAX_ATTEMPTS - 1:
+                        print(f"  Rate limit (429), attendo {RETRY_AFTER_RATE_LIMIT}s...")
+                        time.sleep(RETRY_AFTER_RATE_LIMIT)
+                        continue
                 return False, err
             if not image_bytes:
                 return False, "no_image"
             out_path = AVATARS_DIR / f"{pid}.png"
             save_avatar(image_bytes, out_path)
-            update_player_avatar_url(pid, f"/static/avatars/{pid}.png")
+            update_player_avatar_url(pid, f"/static/media/avatars/{pid}.png")
             return True, None
         except Exception as e:
             err_str = str(e).lower()
             if "429" in err_str or "rate" in err_str:
                 if attempt < MAX_ATTEMPTS - 1:
+                    print(f"  Rate limit (429), attendo {RETRY_AFTER_RATE_LIMIT}s...")
                     time.sleep(RETRY_AFTER_RATE_LIMIT)
                     continue
             return False, str(e)
     return False, "max_attempts"
+
+
+def avatar_exists(pid: int) -> bool:
+    """True se esiste già static/media/avatars/{id}.png"""
+    return (AVATARS_DIR / f"{pid}.png").is_file()
 
 
 def main() -> None:
@@ -427,6 +452,7 @@ def main() -> None:
     parser.add_argument("--all", action="store_true", help="Tutti i giocatori con foto")
     parser.add_argument("--ids", type=str, help="ID separati da virgola (es. 249,306)")
     parser.add_argument("--api-key", type=str, default=None, help="OpenAI API key")
+    parser.add_argument("--no-skip-existing", dest="skip_existing", action="store_false", default=True, help="Processa anche chi ha già avatar (default: salta esistenti)")
     args = parser.parse_args()
 
     id_list = None
@@ -476,9 +502,27 @@ def main() -> None:
         print("Nessun giocatore con foto da processare.")
         sys.exit(0)
 
-    AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+    totale = len(players)
+    if args.skip_existing:
+        players = [p for p in players if not avatar_exists(p["id"])]
+        skipped_count = totale - len(players)
+        if skipped_count:
+            print(f"Skip esistenti: {skipped_count} giocatori con avatar già presente.")
+    else:
+        skipped_count = 0
+
+    if not players:
+        print("Nessun giocatore da processare (tutti già con avatar).")
+        sys.exit(0)
+
+    # Crea cartelle media (avatars + altre per il futuro)
+    for d in (AVATARS_DIR, LEAGUE_BADGES_DIR, TEAM_BADGES_DIR, CARDS_DIR):
+        os.makedirs(d, exist_ok=True)
+
     generated = 0
     errors: list[tuple[int, str, str]] = []
+    failed_ids: list[int] = []
+    start_time = time.monotonic()
 
     for i, player in enumerate(players):
         pid = player["id"]
@@ -486,25 +530,40 @@ def main() -> None:
         team_name = player.get("team_name") or ""
         jersey_color = get_jersey_color(team_name)
         print(f"[{i+1}/{len(players)}] {pid} {name} ({team_name}) - maglia: {jersey_color}")
-        success, err = run_one(client, player, api_key)
-        if success:
-            generated += 1
-            print(f"  OK -> static/avatars/{pid}.png")
-        else:
-            errors.append((pid, name, err or "unknown"))
-            print(f"  Errore: {err}")
+        try:
+            success, err = run_one(client, player, api_key)
+            if success:
+                generated += 1
+                print(f"  OK -> static/media/avatars/{pid}.png")
+            else:
+                errors.append((pid, name, err or "unknown"))
+                failed_ids.append(pid)
+                print(f"  Errore: {err}")
+        except Exception as e:
+            logger.exception("Eccezione per giocatore %s (%s): %s", pid, name, e)
+            errors.append((pid, name, str(e)))
+            failed_ids.append(pid)
+            print(f"  Errore: {e}")
+        if (i + 1) % 10 == 0:
+            pct = 100.0 * (i + 1) / len(players)
+            print(f"--- Progresso: {i+1}/{len(players)} ({pct:.1f}%) - Errori: {len(errors)} ---")
         if i < len(players) - 1:
             time.sleep(SLEEP_BETWEEN)
 
-    print("\n--- Report ---")
-    print(f"Avatar generati: {generated}")
+    elapsed = time.monotonic() - start_time
+    minutes = int(elapsed // 60)
+    seconds = int(elapsed % 60)
+
+    print("\n--- REPORT FINALE ---")
+    print(f"Totale: {totale}")
+    print(f"Generati: {generated}")
+    print(f"Skippati (già esistenti): {skipped_count}")
     print(f"Errori: {len(errors)}")
-    if errors:
-        for pid, name, msg in errors[:20]:
-            print(f"  - {pid} ({name}): {msg}")
-        if len(errors) > 20:
-            print(f"  ... e altri {len(errors) - 20}")
+    if failed_ids:
+        print(f"IDs falliti: {failed_ids}")
+        print("  (rieseguire con: --ids " + ",".join(map(str, failed_ids)) + ")")
     print(f"Costo stimato: ${generated * COST_PER_IMAGE:.2f}")
+    print(f"Tempo totale: {minutes}m {seconds}s")
 
 
 if __name__ == "__main__":
