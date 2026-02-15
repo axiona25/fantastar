@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
 import '../../providers/auth_provider.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/fantastar_background.dart';
+import '../../widgets/fantastar_button.dart';
+import '../../widgets/fantastar_input.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,12 +19,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _acceptTerms = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -28,7 +35,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _emailController.text.trim();
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
     if (email.isEmpty || username.isEmpty || password.isEmpty) return;
+    if (!_acceptTerms) return;
+    if (password != confirm) return;
     final ok = await context.read<AuthProvider>().register(email, username, password);
     if (ok && mounted) context.go('/home');
   }
@@ -37,55 +47,153 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrazione')),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView(
+      body: FantastarBackground(
+        child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 8, top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textDark, size: 24),
+                    onPressed: () => context.pop(),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Crea un account!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        FantastarInput(
+                          label: 'Nome utente',
+                          controller: _usernameController,
+                          hint: 'Il tuo username',
+                          prefixIcon: const Icon(Icons.person_outline),
+                          autocorrect: false,
+                        ),
+                        const SizedBox(height: 16),
+                        FantastarInput(
+                          label: 'Email',
+                          controller: _emailController,
+                          hint: 'esempio@email.com',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                        ),
+                        const SizedBox(height: 16),
+                        FantastarInput(
+                          label: 'Password',
+                          controller: _passwordController,
+                          hint: '••••••••',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          obscureText: true,
+                        ),
+                        const SizedBox(height: 16),
+                        FantastarInput(
+                          label: 'Conferma Password',
+                          controller: _confirmPasswordController,
+                          hint: '••••••••',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          obscureText: true,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _acceptTerms,
+                                onChanged: (v) => setState(() => _acceptTerms = v ?? false),
+                                activeColor: AppColors.success,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                side: const BorderSide(color: AppColors.primary),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _acceptTerms = !_acceptTerms),
+                                child: const Text(
+                                  'Accetto Termini & Privacy',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textDark,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (auth.error != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            auth.error!,
+                            style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        FantastarButton(
+                          label: 'Crea Account',
+                          loading: auth.loading,
+                          onPressed: _acceptTerms ? _submit : null,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Hai già un account? ', style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+                    GestureDetector(
+                      onTap: () => context.pop(),
+                      child: const Text(
+                        'Accedi',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                autocorrect: false,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                onSubmitted: (_) => _submit(),
-              ),
-              if (auth.error != null) ...[
-                const SizedBox(height: 16),
-                Text(auth.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              ],
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: auth.loading ? null : _submit,
-                child: auth.loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Registrati'),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.pop(),
-                child: const Text('Torna al login'),
               ),
             ],
           ),

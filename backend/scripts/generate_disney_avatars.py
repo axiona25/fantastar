@@ -48,54 +48,54 @@ COST_PER_IMAGE = 0.04
 
 TEST_IDS = [249, 306, 100, 150, 200, 300, 400, 500, 600, 50]
 
-# Mappa colori maglie: nome squadra (DB o varianti) -> descrizione per il prompt
+# Mappa maglie: nome squadra (DB o varianti) -> DESCRIZIONE DETTAGLIATA del pattern per consistenza visiva
 TEAM_JERSEYS = {
-    "Atalanta BC": "black and blue striped",
-    "Atalanta": "black and blue striped",
-    "Bologna FC 1909": "red and blue striped",
-    "Bologna": "red and blue striped",
-    "Cagliari Calcio": "dark red",
-    "Cagliari": "dark red",
-    "Como 1907": "blue",
-    "Como": "blue",
-    "Empoli FC": "blue",
-    "Empoli": "blue",
-    "ACF Fiorentina": "purple",
-    "Fiorentina": "purple",
-    "Genoa CFC": "red and dark blue halved",
-    "Genoa": "red and dark blue halved",
-    "FC Internazionale Milano": "blue and black striped",
-    "Inter": "blue and black striped",
-    "Juventus FC": "black and white striped",
-    "Juventus": "black and white striped",
-    "SS Lazio": "light blue",
-    "Lazio": "light blue",
-    "US Lecce": "yellow and red striped",
-    "Lecce": "yellow and red striped",
-    "AC Milan": "red and black striped",
-    "Milan": "red and black striped",
-    "AC Monza": "red and white",
-    "Monza": "red and white",
-    "SSC Napoli": "light blue",
-    "Napoli": "light blue",
-    "Parma Calcio 1913": "white with blue and yellow cross",
-    "Parma": "white with blue and yellow cross",
-    "AS Roma": "dark red with orange details",
-    "Roma": "dark red with orange details",
-    "Torino FC": "dark red granata",
-    "Torino": "dark red granata",
-    "Udinese Calcio": "black and white striped",
-    "Udinese": "black and white striped",
-    "Venezia FC": "black green and orange",
-    "Venezia": "black green and orange",
-    "Hellas Verona FC": "blue and yellow",
-    "Verona": "blue and yellow",
-    "US Sassuolo": "green and black striped",
-    "Sassuolo": "green and black striped",
-    "Pisa SC": "blue and black striped",
-    "Pisa": "blue and black striped",
-    "US Cremonese": "red and gray striped",
-    "Cremonese": "red and gray striped",
+    "Atalanta BC": "black and blue vertical striped jersey with thin alternating black and blue vertical stripes",
+    "Atalanta": "black and blue vertical striped jersey with thin alternating black and blue vertical stripes",
+    "Bologna FC 1909": "red and dark blue vertical striped jersey with alternating red and dark blue vertical stripes",
+    "Bologna": "red and dark blue vertical striped jersey with alternating red and dark blue vertical stripes",
+    "Cagliari Calcio": "solid dark red jersey, plain dark red with no stripes",
+    "Cagliari": "solid dark red jersey, plain dark red with no stripes",
+    "Como 1907": "solid blue jersey, plain blue with no stripes",
+    "Como": "solid blue jersey, plain blue with no stripes",
+    "Empoli FC": "solid blue jersey, plain blue with no stripes",
+    "Empoli": "solid blue jersey, plain blue with no stripes",
+    "ACF Fiorentina": "solid purple jersey, plain purple with no stripes",
+    "Fiorentina": "solid purple jersey, plain purple with no stripes",
+    "Genoa CFC": "red and dark blue halved jersey, left half red and right half dark blue split vertically down the middle",
+    "Genoa": "red and dark blue halved jersey, left half red and right half dark blue split vertically down the middle",
+    "FC Internazionale Milano": "blue and black vertical striped jersey with alternating blue and black vertical stripes of equal width",
+    "Inter": "blue and black vertical striped jersey with alternating blue and black vertical stripes of equal width",
+    "Juventus FC": "black and white vertical striped jersey with alternating black and white vertical stripes of equal width",
+    "Juventus": "black and white vertical striped jersey with alternating black and white vertical stripes of equal width",
+    "SS Lazio": "solid light blue jersey, plain sky blue with no stripes",
+    "Lazio": "solid light blue jersey, plain sky blue with no stripes",
+    "US Lecce": "yellow and red vertical striped jersey with alternating yellow and red vertical stripes",
+    "Lecce": "yellow and red vertical striped jersey with alternating yellow and red vertical stripes",
+    "AC Milan": "red and black vertical striped jersey with alternating red and black vertical stripes of equal width",
+    "Milan": "red and black vertical striped jersey with alternating red and black vertical stripes of equal width",
+    "AC Monza": "solid red jersey with white collar, plain red with no stripes",
+    "Monza": "solid red jersey with white collar, plain red with no stripes",
+    "SSC Napoli": "solid light blue jersey, plain sky blue with no stripes",
+    "Napoli": "solid light blue jersey, plain sky blue with no stripes",
+    "Parma Calcio 1913": "solid white jersey with a vertical blue and yellow cross stripe on the chest",
+    "Parma": "solid white jersey with a vertical blue and yellow cross stripe on the chest",
+    "AS Roma": "solid dark red (maroon) jersey with subtle orange details on collar and sleeves",
+    "Roma": "solid dark red (maroon) jersey with subtle orange details on collar and sleeves",
+    "Torino FC": "solid dark red (granata/maroon) jersey, plain granata with no stripes",
+    "Torino": "solid dark red (granata/maroon) jersey, plain granata with no stripes",
+    "Udinese Calcio": "black and white vertical striped jersey with alternating black and white thin vertical stripes",
+    "Udinese": "black and white vertical striped jersey with alternating black and white thin vertical stripes",
+    "Venezia FC": "solid black jersey with green and orange diagonal stripe across the chest",
+    "Venezia": "solid black jersey with green and orange diagonal stripe across the chest",
+    "Hellas Verona FC": "solid blue jersey with yellow collar and yellow details, plain blue",
+    "Verona": "solid blue jersey with yellow collar and yellow details, plain blue",
+    "US Sassuolo": "green and black vertical striped jersey with alternating green and black vertical stripes",
+    "Sassuolo": "green and black vertical striped jersey with alternating green and black vertical stripes",
+    "Pisa SC": "blue and black vertical striped jersey with alternating blue and black vertical stripes",
+    "Pisa": "blue and black vertical striped jersey with alternating blue and black vertical stripes",
+    "US Cremonese": "red and gray vertical striped jersey with alternating red and gray vertical stripes",
+    "Cremonese": "red and gray vertical striped jersey with alternating red and gray vertical stripes",
 }
 
 
@@ -165,32 +165,32 @@ def get_jersey_color(team_name: str) -> str:
     for key, color in TEAM_JERSEYS.items():
         if key.lower() in name_lower or name_lower in key.lower():
             return color
-    # Fallback parole chiave
+    # Fallback parole chiave (stesse descrizioni dettagliate di TEAM_JERSEYS)
     if "atalanta" in name_lower:
-        return "black and blue striped"
+        return TEAM_JERSEYS["Atalanta BC"]
     if "bologna" in name_lower:
-        return "red and blue striped"
+        return TEAM_JERSEYS["Bologna FC 1909"]
     if "inter" in name_lower or "internazionale" in name_lower:
-        return "blue and black striped"
+        return TEAM_JERSEYS["FC Internazionale Milano"]
     if "milan" in name_lower and "monza" not in name_lower:
-        return "red and black striped"
+        return TEAM_JERSEYS["AC Milan"]
     if "napoli" in name_lower:
-        return "light blue"
+        return TEAM_JERSEYS["SSC Napoli"]
     if "roma" in name_lower:
-        return "dark red with orange details"
+        return TEAM_JERSEYS["AS Roma"]
     if "juve" in name_lower or "juventus" in name_lower:
-        return "black and white striped"
+        return TEAM_JERSEYS["Juventus FC"]
     if "lazio" in name_lower:
-        return "light blue"
+        return TEAM_JERSEYS["SS Lazio"]
     if "torino" in name_lower:
-        return "dark red granata"
+        return TEAM_JERSEYS["Torino FC"]
     if "fiorentina" in name_lower:
-        return "purple"
+        return TEAM_JERSEYS["ACF Fiorentina"]
     if "sassuolo" in name_lower:
-        return "green and black striped"
+        return TEAM_JERSEYS["US Sassuolo"]
     if "cremonese" in name_lower:
-        return "red and gray striped"
-    return "blue"
+        return TEAM_JERSEYS["US Cremonese"]
+    return "solid blue jersey, plain blue with no stripes"
 
 
 def _load_key_from_file() -> str | None:
@@ -308,7 +308,7 @@ COMPOSITION:
 - Frontal view, half-body portrait showing head, neck, and upper chest/shoulders
 - Plain solid white background (single flat color, no gradient) to allow clean background removal
 - Slight friendly expression, natural and confident
-- The character wears a simple {jersey_color} V-neck soccer jersey with NO logos, NO text, NO badges, NO numbers
+- The character wears a {jersey_color}. The jersey pattern must be EXACTLY as described - if vertical stripes are specified, they MUST be vertical stripes running top to bottom, NOT horizontal, NOT diagonal. V-neck collar, no logos, no text, no badges, no numbers.
 
 CRITICAL - LIKENESS:
 - The 3D character MUST closely resemble the real person in the photo
