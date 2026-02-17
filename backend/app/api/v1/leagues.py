@@ -27,13 +27,17 @@ from app.schemas.league import (
     LeagueDetailResponse,
     StandingRow,
     MatchdayResultRow,
+    MatchdayResultDetailRow,
+    PlayerScoreDetail,
     CalendarMatchRow,
     LeagueMemberRow,
     LeagueBlockRequest,
+    PostponedMatchCreate,
 )
+from app.models.serie_a_postponed import SerieAPostponed
 from app.dependencies import get_current_user
 from app.services.league_service import generate_invite_code, generate_calendar_for_league
-from app.services.scoring_engine import ScoringEngine
+from app.services.scoring_engine import ScoringEngine, get_postponed_team_ids
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
 
@@ -84,6 +88,19 @@ async def create_league(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Il numero di partecipanti deve essere tra 2 e 20",
         )
+    if body.league_type == "private" and body.max_members is not None and body.max_members % 2 != 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Il numero di partecipanti deve essere pari (4, 6, 8, ..., 20)",
+        )
+    n_teams = body.max_members if (body.league_type == "private" and body.max_members) else (body.max_teams or 10)
+    total_rounds = (n_teams - 1) * 2
+    max_start = 38 - total_rounds + 1
+    if body.start_matchday < 1 or body.start_matchday > max_start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La giornata di inizio deve essere tra 1 e {max_start}",
+        )
     invite = body.invite_code or generate_invite_code()
     r = await db.execute(select(FantasyLeague).where(FantasyLeague.invite_code == invite))
     while r.scalar_one_or_none():
@@ -103,6 +120,8 @@ async def create_league(
         league_type=body.league_type,
         max_members=max_members,
         budget=body.budget,
+        start_matchday=body.start_matchday,
+        auction_type=body.auction_type,
     )
     db.add(league)
     await db.commit()
@@ -360,21 +379,22 @@ async def generate_calendar(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Genera calendario round-robin (andata e ritorno). Solo admin o partecipante."""
+    """Genera calendario round-robin (andata e ritorno). Solo admin. Una sola volta per lega."""
     league = await _get_league_or_404(db, league_id)
     if not league:
         _league_gone_404()
     if league.admin_user_id != current_user.id:
-        member = await db.execute(select(FantasyTeam.id).where(FantasyTeam.league_id == league_id, FantasyTeam.user_id == current_user.id))
-        if not member.scalar_one_or_none():
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo l'admin può generare il calendario")
     try:
         count = await generate_calendar_for_league(db, league_id)
         await db.commit()
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Calendar generation failed")
-    return {"generated": count}
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Generazione calendario fallita")
+    return {"message": "Calendario generato", "total_rounds": (count // 2), "total_matches": count}
 
 
 @router.get("/{league_id}/standings", response_model=list[StandingRow])
@@ -414,6 +434,10 @@ async def get_standings(
             losses=t.losses,
             goals_for=t.goals_for,
             goals_against=t.goals_against,
+            logo_url=t.logo_url,
+            coach_avatar_url=t.coach_avatar_url,
+            budget_remaining=t.budget_remaining,
+            is_configured=t.is_configured,
         )
         for i, t in enumerate(teams)
     ]
@@ -441,6 +465,25 @@ async def get_league_calendar(
     )
     rows = r.all()
     return [CalendarMatchRow(matchday=row.matchday, home_team_name=row.home_team_name or "", away_team_name=row.away_team_name or "") for row in rows]
+
+
+@router.post("/postponed-matches", response_model=dict)
+async def add_postponed_match(
+    body: PostponedMatchCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Segna una partita di Serie A come rinviata per una giornata (6 politico). Solo admin o backend."""
+    from sqlalchemy.dialects.postgresql import insert
+    stmt = insert(SerieAPostponed).values(
+        matchday=body.matchday,
+        home_team_id=body.home_team_id,
+        away_team_id=body.away_team_id,
+        reason=body.reason,
+    ).on_conflict_do_nothing(index_elements=["matchday", "home_team_id", "away_team_id"])
+    await db.execute(stmt)
+    await db.commit()
+    return {"message": "Partita segnata come rinviata"}
 
 
 @router.get("/{league_id}/matchday/{matchday}/results", response_model=list[MatchdayResultRow])
@@ -473,6 +516,93 @@ async def get_matchday_results(
             away_goals=res.away_goals,
             home_result=res.home_result,
             away_result=res.away_result,
+        ))
+    return out
+
+
+@router.get("/{league_id}/matchday/{matchday}/results/details", response_model=list[MatchdayResultDetailRow])
+async def get_matchday_results_details(
+    league_id: UUID,
+    matchday: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Risultati della giornata con pagelle (player_scores) e flag is_postponed per 6 politico."""
+    league = await _get_league_or_404(db, league_id)
+    if not league:
+        _league_gone_404()
+    start_matchday = getattr(league, "start_matchday", 1)
+    serie_a_matchday = start_matchday + (matchday - 1)
+    postponed_team_ids = await get_postponed_team_ids(db, serie_a_matchday)
+    cal = await db.execute(
+        select(FantasyCalendar).where(
+            FantasyCalendar.league_id == league_id,
+            FantasyCalendar.matchday == matchday,
+        )
+    )
+    rows = cal.scalars().all()
+    threshold = float(league.goal_threshold or 66)
+    step = float(league.goal_step or 8)
+    engine = ScoringEngine(db)
+    out = []
+    for fc in rows:
+        home = await engine.calculate_team_score(
+            fc.home_team_id, matchday, league_id=None, threshold=threshold, step=step,
+            serie_a_matchday=serie_a_matchday, postponed_team_ids=postponed_team_ids,
+        )
+        away = await engine.calculate_team_score(
+            fc.away_team_id, matchday, league_id=None, threshold=threshold, step=step,
+            serie_a_matchday=serie_a_matchday, postponed_team_ids=postponed_team_ids,
+        )
+        if not home or not away:
+            continue
+        home_goals = home.fantasy_goals
+        away_goals = away.fantasy_goals
+        if home_goals > away_goals:
+            home_res, away_res = "W", "L"
+        elif home_goals < away_goals:
+            home_res, away_res = "L", "W"
+        else:
+            home_res = away_res = "D"
+        home_scores = [
+            PlayerScoreDetail(
+                player_id=p.player_id,
+                total_score=float(p.total_score),
+                base_score=float(p.base_score),
+                advanced_score=float(p.advanced_score),
+                was_subbed_in=p.was_subbed_in,
+                is_postponed=p.is_postponed,
+            )
+            for p in home.player_scores
+        ]
+        away_scores = [
+            PlayerScoreDetail(
+                player_id=p.player_id,
+                total_score=float(p.total_score),
+                base_score=float(p.base_score),
+                advanced_score=float(p.advanced_score),
+                was_subbed_in=p.was_subbed_in,
+                is_postponed=p.is_postponed,
+            )
+            for p in away.player_scores
+        ]
+        r_h = await db.execute(select(FantasyTeam.name).where(FantasyTeam.id == fc.home_team_id))
+        r_a = await db.execute(select(FantasyTeam.name).where(FantasyTeam.id == fc.away_team_id))
+        home_name = (r_h.scalar_one_or_none() or "") or ""
+        away_name = (r_a.scalar_one_or_none() or "") or ""
+        out.append(MatchdayResultDetailRow(
+            home_team_id=fc.home_team_id,
+            away_team_id=fc.away_team_id,
+            home_team_name=home_name,
+            away_team_name=away_name,
+            home_score=float(home.total_score),
+            away_score=float(away.total_score),
+            home_goals=home_goals,
+            away_goals=away_goals,
+            home_result=home_res,
+            away_result=away_res,
+            home_player_scores=home_scores,
+            away_player_scores=away_scores,
         ))
     return out
 
@@ -510,6 +640,48 @@ async def delete_league(
             f"⚠️ La lega {league.name} è stata eliminata",
         )
     return {"message": "Lega eliminata"}
+
+
+@router.post("/{league_id}/start", response_model=dict)
+async def start_league(
+    league_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Avvia la lega: configura l'asta, salva, invia notifiche in-app a tutti i partecipanti. Solo admin."""
+    league = await _require_league_admin(db, league_id, current_user)
+    if league.asta_started:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La lega è già stata avviata",
+        )
+    league.asta_started = True
+    await db.commit()
+    await db.refresh(league)
+    r = await db.execute(select(FantasyTeam.user_id).where(FantasyTeam.league_id == league_id).distinct())
+    user_ids = [row[0] for row in r.all()]
+    if user_ids:
+        await send_push_to_users(
+            db,
+            user_ids,
+            "Lega avviata",
+            f"La lega {league.name} è stata avviata. L'asta è disponibile in La mia Squadra!",
+        )
+    return {"message": "Lega avviata", "asta_started": True}
+
+
+@router.post("/{league_id}/reset-asta", response_model=dict)
+async def reset_asta(
+    league_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Resetta lo stato asta della lega (asta_started = False). Solo admin. Consente di riavviare l'asta da zero."""
+    league = await _require_league_admin(db, league_id, current_user)
+    league.asta_started = False
+    await db.commit()
+    await db.refresh(league)
+    return {"message": "Asta resettata", "asta_started": False}
 
 
 @router.get("/{league_id}/members", response_model=list[LeagueMemberRow])

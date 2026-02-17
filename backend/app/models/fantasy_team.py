@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Integer, Numeric, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import String, Integer, Numeric, DateTime, Boolean, ForeignKey, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -18,6 +18,9 @@ class FantasyTeam(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    coach_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    coach_avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_configured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     budget_remaining: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=500)
     total_points: Mapped[int] = mapped_column(Integer, default=0)
     wins: Mapped[int] = mapped_column(Integer, default=0)

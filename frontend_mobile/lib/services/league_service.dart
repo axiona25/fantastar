@@ -2,6 +2,7 @@ import 'auth_service.dart';
 import '../models/fantasy_league.dart';
 import '../models/standing.dart';
 import '../models/matchday_result.dart';
+import '../models/matchday_result_detail.dart';
 import '../models/league_member.dart';
 
 /// Servizio API leghe e classifiche fantasy.
@@ -36,12 +37,16 @@ class LeagueService {
     required String leagueType,
     int? maxMembers,
     double budget = 500,
+    int startMatchday = 1,
+    String auctionType = 'classic',
   }) async {
     final data = <String, dynamic>{
       'name': name,
       'logo': logo,
       'league_type': leagueType,
       'budget': budget,
+      'start_matchday': startMatchday,
+      'auction_type': auctionType,
     };
     if (leagueType == 'private' && maxMembers != null) {
       data['max_members'] = maxMembers;
@@ -62,6 +67,17 @@ class LeagueService {
     await auth.dio.post('/leagues/$leagueId/generate-calendar');
   }
 
+  /// Avvia lega: configura l'asta, salva, invia notifiche in-app a tutti i partecipanti.
+  /// Solo admin. Dopo il successo la lega avrà asta_started=true e il pulsante Asta in La mia Squadra si abilita.
+  Future<void> startLeague(String leagueId) async {
+    await auth.dio.post('/leagues/$leagueId/start');
+  }
+
+  /// Resetta lo stato asta della lega (asta_started = false). Solo admin. Permette di riavviare l'asta.
+  Future<void> resetAsta(String leagueId) async {
+    await auth.dio.post('/leagues/$leagueId/reset-asta');
+  }
+
   Future<List<StandingModel>> getLeagueTeamsAsStandings(String leagueId) async {
     return getStandings(leagueId);
   }
@@ -77,6 +93,13 @@ class LeagueService {
     final response = await auth.dio.get('/leagues/$leagueId/matchday/$matchday/results');
     final list = response.data is List ? response.data as List : [];
     return list.map((e) => MatchdayResultModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Risultati della giornata con pagelle (player_scores) e flag is_postponed (6 politico).
+  Future<List<MatchdayResultDetailModel>> getMatchdayResultsDetails(String leagueId, int matchday) async {
+    final response = await auth.dio.get('/leagues/$leagueId/matchday/$matchday/results/details');
+    final list = response.data is List ? response.data as List : [];
+    return list.map((e) => MatchdayResultDetailModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Lista membri della lega (solo per partecipanti).

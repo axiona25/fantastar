@@ -167,6 +167,7 @@ class MatchRatingPlayerEventItem(BaseModel):
 class MatchRatingPlayer(BaseModel):
     """Un giocatore nella tab voti partita."""
     name: str
+    player_id: int | None = None  # ID DB per avatar: /static/media/avatars/{player_id}.png
     role: str = "CEN"
     number: str | int | None = None
     live_rating: float | None = None

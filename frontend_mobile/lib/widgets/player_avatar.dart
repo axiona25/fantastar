@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app/constants.dart';
 
-/// Colori primari squadre Serie A (per sfondo avatar).
+/// Colori primari squadre Serie A (per sfondo avatar quando usato con teamColor).
 const Map<String, Color> teamColors = {
   'Atalanta': Color(0xFF1E71B8),
   'Bologna': Color(0xFF1A2F48),
@@ -29,7 +29,6 @@ const Map<String, Color> teamColors = {
   'Salernitana': Color(0xFF682B47),
 };
 
-/// Restituisce il colore squadra per nome (case-insensitive match parziale).
 Color getTeamColor(String? teamName) {
   if (teamName == null || teamName.isEmpty) return Colors.grey;
   final name = teamName.trim();
@@ -41,27 +40,27 @@ Color getTeamColor(String? teamName) {
 }
 
 /// Colore badge ruolo: P arancione, D verde, C blu, A rosso.
-Color _roleBadgeColor(String role) {
+Color getRoleBadgeColor(String role) {
   switch (role.toUpperCase()) {
     case 'P':
     case 'POR':
-      return Colors.orange;
+      return const Color(0xFFFF8F00);
     case 'D':
     case 'DIF':
-      return Colors.green;
+      return const Color(0xFF2E7D32);
     case 'C':
     case 'CEN':
-      return Colors.blue;
+      return const Color(0xFF1565C0);
     case 'A':
     case 'ATT':
-      return Colors.red;
+      return const Color(0xFFC62828);
     default:
-      return Colors.grey;
+      return const Color(0xFF5C6B7A);
   }
 }
 
 /// Lettera ruolo per badge: POR->P, DIF->D, CEN->C, ATT->A.
-String _roleLetter(String role) {
+String getRoleLetter(String role) {
   switch (role.toUpperCase()) {
     case 'POR':
       return 'P';
@@ -76,116 +75,110 @@ String _roleLetter(String role) {
   }
 }
 
-/// Avatar giocatore in stile Fantacalcio: cerchio sfumato squadra + cutout/foto + badge ruolo.
+/// Avatar 3D Disney giocatore. URL sempre: kBackendOrigin/static/media/avatars/{playerId}.png
+/// Usare ovunque nell'app si mostri un giocatore (listone, asta, rosa, dettaglio, etc.).
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,
-    this.cutoutUrl,
-    this.photoUrl,
-    required this.playerName,
+    required this.playerId,
     required this.role,
-    required this.teamColor,
-    this.size = 56,
+    this.size = 52,
+    this.showRoleBadge = true,
+    this.playerName,
+    this.teamColor,
   });
 
-  final String? cutoutUrl;
-  final String? photoUrl;
-  final String playerName;
+  final int playerId;
   final String role;
-  final Color teamColor;
   final double size;
+  final bool showRoleBadge;
+  /// Nome per fallback iniziali se immagine non disponibile (opzionale).
+  final String? playerName;
+  /// Colore sfondo/gradiente (opzionale, altrimenti usa sfondo neutro).
+  final Color? teamColor;
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = resolvePlayerPhotoUrl(cutoutUrl ?? photoUrl);
-    final badgeColor = _roleBadgeColor(role);
-    final letter = _roleLetter(role);
+    final badgeColor = getRoleBadgeColor(role);
+    final letter = getRoleLetter(role);
+    final bgColor = teamColor ?? const Color(0xFFE0E8F2);
 
     return SizedBox(
-      width: size,
-      height: size,
+      width: size + (showRoleBadge ? 4 : 0),
+      height: size + (showRoleBadge ? 4 : 0),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 1. Cerchio sfondo con gradiente squadra
           Container(
             width: size,
             height: size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  teamColor.withOpacity(0.3),
-                  teamColor.withOpacity(0.7),
-                ],
+              color: bgColor,
+              border: Border.all(
+                color: badgeColor.withOpacity(0.4),
+                width: 2,
               ),
-              border: Border.all(color: teamColor.withOpacity(0.5), width: 1.5),
             ),
-          ),
-          // 2. Foto cutout/photo sovrapposta (testa leggermente più grande del cerchio)
-          Positioned(
-            left: size * 0.05,
-            right: size * 0.05,
-            bottom: 0,
-            child: SizedBox(
-              width: size * 0.9,
-              height: size * 0.95,
-              child: imageUrl != null
+            child: ClipOval(
+              child: playerId > 0
                   ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.bottomCenter,
-                      errorBuilder: (_, __, ___) => _initialsAvatar(context),
+                      getPlayerAvatarUrl(playerId),
+                      fit: BoxFit.cover,
+                      cacheWidth: (size * 2).toInt(),
+                      cacheHeight: (size * 2).toInt(),
+                      errorBuilder: (_, __, ___) => _fallbackContent(badgeColor),
                     )
-                  : _initialsAvatar(context),
+                  : _fallbackContent(badgeColor),
             ),
           ),
-          // 3. Badge ruolo in basso a sinistra
-          Positioned(
-            left: 0,
-            bottom: 0,
-            child: Container(
-              width: size * 0.32,
-              height: size * 0.32,
-              decoration: BoxDecoration(
-                color: badgeColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Center(
-                child: Text(
-                  letter,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: size * 0.18,
-                    fontWeight: FontWeight.bold,
+          if (showRoleBadge)
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: Container(
+                width: size * 0.42,
+                height: size * 0.42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: badgeColor,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    letter,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: size * 0.18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _initialsAvatar(BuildContext context) {
-    final initial = playerName.trim().isNotEmpty
-        ? (playerName.trim().split(RegExp(r'\s+')).length >= 2
-            ? '${playerName.trim().split(RegExp(r'\s+')).first[0]}${playerName.trim().split(RegExp(r'\s+')).last[0]}'.toUpperCase()
-            : playerName.trim()[0].toUpperCase())
-        : '?';
-    return Center(
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: size * 0.35,
-          fontWeight: FontWeight.bold,
+  Widget _fallbackContent(Color roleColor) {
+    if (playerName != null && playerName!.trim().isNotEmpty) {
+      final parts = playerName!.trim().split(RegExp(r'\s+'));
+      final initial = parts.length >= 2
+          ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
+          : playerName!.trim()[0].toUpperCase();
+      return Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: roleColor,
+            fontSize: size * 0.35,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-    );
+      );
+    }
+    return Icon(Icons.person, size: size * 0.5, color: roleColor);
   }
 }

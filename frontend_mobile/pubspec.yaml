@@ -70,6 +70,9 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/images/tavolo_asta.png
+    - assets/images/carta_asta.png
+    - assets/images/spot/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

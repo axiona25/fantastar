@@ -557,11 +557,13 @@ class MatchRatingPlayerModel {
   final MatchRatingPlayerEventsModel events;
   /// Lista eventi (gol, cartellini, ecc.) per icone.
   final List<MatchRatingPlayerEventItemModel> eventList;
+  final int? playerId;
   final String? photoUrl;
   final String? cutoutUrl;
 
   const MatchRatingPlayerModel({
     required this.name,
+    this.playerId,
     this.role = 'CEN',
     this.number,
     this.liveRating,
@@ -587,6 +589,7 @@ class MatchRatingPlayerModel {
     final eventListRaw = json['event_list'] as List<dynamic>? ?? [];
     return MatchRatingPlayerModel(
       name: json['name'] as String? ?? '',
+      playerId: (json['player_id'] as num?)?.toInt(),
       role: json['role'] as String? ?? 'CEN',
       number: numberStr,
       liveRating: (json['live_rating'] as num?)?.toDouble(),

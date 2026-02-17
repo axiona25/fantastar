@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/constants.dart';
 import '../../models/standing_row.dart';
 import '../../services/stats_service.dart';
 import '../../utils/error_utils.dart';
+import '../../utils/team_utils.dart';
 
 /// Classifica Serie A reale da GET /stats/standings.
 class SerieAStandingsScreen extends StatefulWidget {
@@ -17,6 +19,18 @@ class _SerieAStandingsScreenState extends State<SerieAStandingsScreen> {
   List<StandingRow> _rows = [];
   bool _loading = true;
   String? _error;
+
+  static String? _resolveLogoUrl(String? crest) {
+    if (crest == null || crest.isEmpty) return null;
+    if (crest.startsWith('http://') || crest.startsWith('https://')) return crest;
+    return '$kBackendOrigin$crest';
+  }
+
+  static String? _standingsBadgeUrl(StandingRow r) {
+    final local = getTeamBadgeUrl(r.teamName);
+    if (local.isNotEmpty) return local;
+    return _resolveLogoUrl(r.crest);
+  }
 
   Future<void> _load() async {
     setState(() {
@@ -104,8 +118,8 @@ class _SerieAStandingsScreenState extends State<SerieAStandingsScreen> {
                               ..._rows.map((r) => TableRow(
                                     children: [
                                       _Cell(Text('${r.position}')),
-                                      _Cell(_Crest(crest: r.crest)),
-                                      _Cell(Text(r.teamName, overflow: TextOverflow.ellipsis)),
+                                      _Cell(_Crest(crest: _standingsBadgeUrl(r), teamName: r.teamName)),
+                                      _Cell(Text(getShortName(r.teamName), overflow: TextOverflow.ellipsis)),
                                       _Cell(Text('${r.points}')),
                                       _Cell(Text('${r.won}')),
                                       _Cell(Text('${r.draw}')),
@@ -157,21 +171,45 @@ class _Cell extends StatelessWidget {
 }
 
 class _Crest extends StatelessWidget {
-  const _Crest({this.crest});
+  const _Crest({this.crest, this.teamName});
 
   final String? crest;
+  final String? teamName;
 
   @override
   Widget build(BuildContext context) {
+    final initial = (teamName != null && teamName!.isNotEmpty)
+        ? getShortName(teamName!).isNotEmpty
+            ? getShortName(teamName!).substring(0, 1).toUpperCase()
+            : '?'
+        : '?';
     if (crest == null || crest!.isEmpty) {
-      return const SizedBox(width: 28, height: 28, child: Icon(Icons.sports_soccer, size: 20));
+      return SizedBox(
+        width: 28,
+        height: 28,
+        child: CircleAvatar(
+          backgroundColor: Colors.white,
+          child: Text(initial, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+      );
     }
-    return Image.network(
-      crest!,
+    return SizedBox(
       width: 28,
       height: 28,
-      fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => const Icon(Icons.sports_soccer, size: 20),
+      child: CircleAvatar(
+        backgroundColor: Colors.white,
+        child: ClipOval(
+          child: Image.network(
+            crest!,
+            width: 28,
+            height: 28,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Center(
+              child: Text(initial, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

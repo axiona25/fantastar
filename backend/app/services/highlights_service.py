@@ -1,6 +1,5 @@
 """
-Highlights video: prima ScoreBat (gratuito), se vuoto e YOUTUBE_API_KEY impostata → YouTube Data API v3.
-Cache risultati per match: 2 ore.
+Highlights video da ScoreBat. Cache risultati per match: 2 ore.
 """
 import logging
 import time
@@ -19,7 +18,7 @@ SCOREBAT_FEED_URL = "https://www.scorebat.com/video-api/v1/"
 FEED_CACHE_TTL_SECONDS = 30 * 60  # 30 minuti
 _feed_cache: tuple[float, list[dict[str, Any]]] | None = None
 
-# Cache risultati combinati (ScoreBat + eventuale YouTube) per match_id, TTL 2 ore
+# Cache risultati per match_id, TTL 2 ore
 _HIGHLIGHTS_CACHE_TTL_SECONDS = 2 * 60 * 60
 _highlights_cache: dict[int, tuple[float, list[dict[str, Any]]]] = {}
 
@@ -183,10 +182,7 @@ async def _get_scorebat_highlights(
 
 async def get_highlights_for_match(match_id: int, db: AsyncSession) -> list[dict[str, Any]]:
     """
-    Ritorna lista di highlight per la partita.
-    1) Cerca in ScoreBat (gratuito).
-    2) Se ScoreBat vuoto e YOUTUBE_API_KEY configurata, cerca su YouTube.
-    3) Cache risultati per 2 ore.
+    Ritorna lista di highlight per la partita (ScoreBat). Cache risultati per 2 ore.
     """
     now = time.time()
     if match_id in _highlights_cache:
@@ -217,24 +213,6 @@ async def get_highlights_for_match(match_id: int, db: AsyncSession) -> list[dict
         away_name = (r.scalar_one_or_none() or "") or ""
 
     out = await _get_scorebat_highlights(home_name, away_name)
-
-    if not out:
-        from app.services.youtube_highlights_provider import search_highlights
-
-        yt_list = await search_highlights(home_name, away_name, kick_off)
-        for y in yt_list:
-            video_id = y.get("video_id")
-            out.append({
-                "title": y.get("title", ""),
-                "embed": y.get("embed", ""),
-                "thumbnail": y.get("thumbnail", ""),
-                "competition": y.get("competition", ""),
-                "matchviewUrl": y.get("matchviewUrl", ""),
-                "video_id": video_id,
-                "embed_url": y.get("embed_url"),
-                "watch_url": f"https://www.youtube.com/watch?v={video_id}" if video_id else "",
-                "source": y.get("channel", ""),
-            })
 
     _highlights_cache[match_id] = (now, out)
     return out

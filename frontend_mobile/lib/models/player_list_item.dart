@@ -12,6 +12,8 @@ class PlayerListItemModel {
   final String? ownedBy;
   final String? photoUrl;
   final String? cutoutUrl;
+  final String? realTeamShortName;
+  final String? realTeamBadgeUrl;
 
   const PlayerListItemModel({
     required this.id,
@@ -24,6 +26,8 @@ class PlayerListItemModel {
     this.ownedBy,
     this.photoUrl,
     this.cutoutUrl,
+    this.realTeamShortName,
+    this.realTeamBadgeUrl,
   });
 
   factory PlayerListItemModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,8 @@ class PlayerListItemModel {
       ownedBy: json['owned_by'] as String?,
       photoUrl: json['photo_url'] as String?,
       cutoutUrl: json['cutout_url'] as String?,
+      realTeamShortName: json['real_team_short'] as String?,
+      realTeamBadgeUrl: json['real_team_badge'] as String?,
     );
   }
 }

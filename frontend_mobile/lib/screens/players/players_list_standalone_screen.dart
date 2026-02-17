@@ -24,7 +24,7 @@ class _PlayersListStandaloneScreenState extends State<PlayersListStandaloneScree
   bool _hasMore = true;
   String? _position;
   String _search = '';
-  String _sortBy = 'name';
+  String _sortBy = 'initial_price';
 
   Future<void> _load() async {
     setState(() {
@@ -38,6 +38,7 @@ class _PlayersListStandaloneScreenState extends State<PlayersListStandaloneScree
             position: _position,
             search: _search.isEmpty ? null : _search,
             sortBy: _sortBy,
+            sortOrder: _sortBy == 'initial_price' ? 'desc' : 'asc',
             page: 1,
           );
       if (mounted) {
@@ -62,6 +63,7 @@ class _PlayersListStandaloneScreenState extends State<PlayersListStandaloneScree
             position: _position,
             search: _search.isEmpty ? null : _search,
             sortBy: _sortBy,
+            sortOrder: _sortBy == 'initial_price' ? 'desc' : 'asc',
             page: nextPage,
           );
       if (mounted) {

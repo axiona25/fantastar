@@ -702,10 +702,9 @@ class _RosterPlayerTile extends StatelessWidget {
       },
       child: ListTile(
         leading: PlayerAvatar(
-          cutoutUrl: player.cutoutUrl,
-          photoUrl: player.photoUrl,
-          playerName: player.playerName,
+          playerId: player.playerId,
           role: player.position,
+          playerName: player.playerName,
           teamColor: getTeamColor(player.realTeamName),
           size: 40,
         ),
@@ -778,10 +777,9 @@ class _FormationRow extends StatelessWidget {
                   ? Tooltip(
                       message: p.playerName,
                       child: PlayerAvatar(
-                        cutoutUrl: p.cutoutUrl,
-                        photoUrl: p.photoUrl,
-                        playerName: p.playerName,
+                        playerId: p.playerId,
                         role: p.position,
+                        playerName: p.playerName,
                         teamColor: getTeamColor(p.realTeamName),
                         size: 36,
                       ),

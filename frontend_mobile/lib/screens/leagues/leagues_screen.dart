@@ -91,34 +91,7 @@ class _LeaguesScreenState extends State<LeaguesScreen> {
                       ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            builder: (ctx) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.add),
-                    title: const Text('Crea lega'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      context.push('/leagues/create');
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.login),
-                    title: const Text('Unisciti con codice'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      context.push('/leagues/join');
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+        onPressed: () => context.push('/leagues/new'),
         child: const Icon(Icons.add),
       ),
     );

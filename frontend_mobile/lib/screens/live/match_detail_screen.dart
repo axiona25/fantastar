@@ -959,10 +959,9 @@ class _PlayerVotoCell extends StatelessWidget {
     final icons = eventIcons(player.events, player.eventList);
     final role = roleLetter(player.role);
     final avatar = PlayerAvatar(
-      cutoutUrl: player.cutoutUrl,
-      photoUrl: player.photoUrl,
-      playerName: player.name,
+      playerId: player.playerId ?? 0,
       role: player.role,
+      playerName: player.name,
       teamColor: getTeamColor(teamName),
       size: 44,
     );

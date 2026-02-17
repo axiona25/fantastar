@@ -1,8 +1,19 @@
-/// URL base API backend (cambia per emulatore: 10.0.2.2:8000 su Android, localhost su iOS sim).
+/// URL base API backend. Tutti gli endpoint sono sotto /api/v1/ tranne league-badges.
+/// - News: GET ${baseUrl}/news  → http://localhost:8000/api/v1/news
+/// - Classifica: GET ${baseUrl}/standings/serie-a  → http://localhost:8000/api/v1/standings/serie-a
+/// - League badges: GET $kBackendOrigin/api/league-badges  (senza /v1/)
+/// - iOS Simulator: http://localhost:8000/api/v1
+/// - Android Emulator: http://10.0.2.2:8000/api/v1 (10.0.2.2 = host machine)
 const String kApiBaseUrl = 'http://localhost:8000/api/v1';
 
-/// Origine backend per URL statici (foto giocatori: /static/photos/...).
+/// Origine backend (host:port) per URL statici e per /api/league-badges (senza /v1/).
 String get kBackendOrigin => Uri.parse(kApiBaseUrl).origin;
+
+/// URL avatar 3D Disney per giocatore. Sempre: static/media/avatars/{player_id}.png
+/// Usare ovunque nell'app si mostri un giocatore (listone, asta, rosa, dettaglio, etc.).
+String getPlayerAvatarUrl(int playerId) {
+  return '$kBackendOrigin/static/media/avatars/$playerId.png';
+}
 
 /// Restituisce l'URL assoluto per la foto del giocatore.
 /// - null/vuoto → null (usare fallback iniziali).

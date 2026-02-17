@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Colori e stili del brand Fantastar (palette fantacalcio / maschile)
@@ -6,7 +7,8 @@ class AppColors {
   AppColors._();
 
   static const Color primary = Color(0xFF0D47A1);       // blu navy
-  static const Color primaryLight = Color(0xFF1565C0); // blu
+  static const Color primaryDark = Color(0xFF0A3D7A);  // blu scuro (titoli)
+  static const Color primaryLight = Color(0xFF1565C0);  // blu
   static const Color background1 = Color(0xFFE0E8F2);  // grigio-blu un po' più marcato
   static const Color background2 = Color(0xFFD5DFEB);
   static const Color background3 = Color(0xFFC5D2E4);
@@ -65,8 +67,11 @@ ThemeData get appTheme {
       centerTitle: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      iconTheme: const IconThemeData(color: AppColors.textDark),
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      iconTheme: const IconThemeData(color: AppColors.primary),
+      actionsIconTheme: const IconThemeData(color: AppColors.primary),
     ),
+    iconTheme: const IconThemeData(color: AppColors.primary),
     inputDecorationTheme: InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

@@ -64,11 +64,25 @@ async def create_team(
     league = r.scalar_one_or_none()
     if not league:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questa lega non esiste più")
-    existing = await db.execute(
+    existing_r = await db.execute(
         select(FantasyTeam).where(FantasyTeam.league_id == body.league_id, FantasyTeam.user_id == current_user.id)
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already have a team in this league")
+    existing_team = existing_r.scalar_one_or_none()
+    if existing_team:
+        if existing_team.is_configured:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Hai già una squadra configurata in questa lega",
+            )
+        existing_team.name = body.name
+        existing_team.logo_url = body.logo_url
+        existing_team.coach_name = body.coach_name
+        existing_team.coach_avatar_url = body.coach_avatar_url
+        existing_team.is_configured = True
+        await db.commit()
+        await db.refresh(existing_team)
+        return existing_team
+
     count_r = await db.execute(select(func.count()).select_from(FantasyTeam).where(FantasyTeam.league_id == body.league_id))
     member_count = count_r.scalar() or 0
     if league.league_type == "private" and league.max_members is not None and member_count >= league.max_members:
@@ -80,6 +94,10 @@ async def create_team(
         league_id=body.league_id,
         user_id=current_user.id,
         name=body.name,
+        logo_url=body.logo_url,
+        coach_name=body.coach_name,
+        coach_avatar_url=body.coach_avatar_url,
+        is_configured=True,
         budget_remaining=league.budget,
     )
     db.add(team)

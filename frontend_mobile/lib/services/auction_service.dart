@@ -14,6 +14,7 @@ class AuctionService {
 
   final AuthService auth;
 
+  /// Path con slash iniziale: baseUrl + path = .../api/v1 + /leagues/... → /api/v1/leagues/...
   String _leagueBase(String leagueId) => '/leagues/$leagueId/auction';
 
   /// GET status: stato completo (timer, current_player, current_bid, participants).
@@ -75,6 +76,46 @@ class AuctionService {
 
   Future<void> stopSession(String leagueId) async {
     await auth.dio.post('${_leagueBase(leagueId)}/stop');
+  }
+
+  /// Sedie tavolo asta live: join, leave, seats, heartbeat.
+
+  /// POST join: siediti a una sedia random. Ritorna seat_number, my_team_id e lista seats.
+  Future<Map<String, dynamic>> joinAuction(String leagueId) async {
+    final path = '${_leagueBase(leagueId)}/join';
+    debugPrint('🎯 AUCTION JOIN: POST $path (baseUrl=${auth.dio.options.baseUrl})');
+    final response = await auth.dio.post(path);
+    debugPrint('🎯 AUCTION JOIN response: ${response.statusCode}');
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// POST leave: alzati dalla sedia.
+  Future<void> leaveAuction(String leagueId) async {
+    await auth.dio.post('${_leagueBase(leagueId)}/leave');
+  }
+
+  /// GET seats: lista sedie con chi è seduto (max_seats, seats).
+  Future<Map<String, dynamic>> getAuctionSeats(String leagueId) async {
+    final response = await auth.dio.get('${_leagueBase(leagueId)}/seats');
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// POST heartbeat: mantieni la sedia (ping ogni 10s).
+  Future<void> sendAuctionHeartbeat(String leagueId) async {
+    await auth.dio.post('${_leagueBase(leagueId)}/heartbeat');
+  }
+
+  /// GET portfolio: budget e acquisti della mia squadra.
+  Future<Map<String, dynamic>> getMyPortfolio(String leagueId) async {
+    final response = await auth.dio.get('${_leagueBase(leagueId)}/portfolio');
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// GET portfolios: budget di tutte le squadre (per il tavolo).
+  Future<List<Map<String, dynamic>>> getAllPortfolios(String leagueId) async {
+    final response = await auth.dio.get('${_leagueBase(leagueId)}/portfolios');
+    final list = response.data as List<dynamic>? ?? [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
   String auctionWsUrl(String leagueId) => '$kWsBaseUrl/ws/auction/$leagueId';

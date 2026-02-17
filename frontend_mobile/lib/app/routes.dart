@@ -1,29 +1,36 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/fantasy_league.dart';
+import '../models/standing.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/splash_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/reset_password_screen.dart';
-import '../screens/home/main_shell_screen.dart';
-import '../screens/home/tabs/home_tab.dart';
-import '../screens/home/tabs/live_tab.dart';
-import '../screens/home/tabs/news_tab.dart';
-import '../screens/home/tabs/standings_tab.dart';
-import '../screens/home/tabs/team_tab.dart';
-import '../screens/standings/serie_a_standings_screen.dart';
+import '../screens/main_shell.dart';
+import '../screens/home/home_screen.dart';
+import '../screens/home/placeholder_tab.dart';
+import '../screens/standings/standings_screen.dart';
 import '../screens/standings/fantasy_standings_screen.dart';
 import '../screens/standings/top_scorers_screen.dart';
 import '../screens/player/player_detail_screen.dart';
 import '../screens/team/set_lineup_screen.dart';
 import '../screens/auction/auction_screen.dart';
+import '../screens/auction/auction_config_screen.dart';
+import '../screens/auction/auction_turn_screen.dart';
+import '../screens/auction/auction_results_screen.dart';
+import '../screens/auction/auction_overview_screen.dart';
+import '../screens/auction/auction_tab_screen.dart';
+import '../screens/auction/auction_live_screen.dart';
 import '../screens/players/player_list_screen.dart';
 import '../screens/market/market_screen.dart';
 import '../screens/live/match_detail_screen.dart';
 import '../screens/risultati/risultati_screen.dart';
 import '../screens/risultati/pagelle_screen.dart';
 import '../screens/leagues/leagues_screen.dart';
+import '../screens/leagues/new_league_choice_screen.dart';
 import '../screens/leagues/create_league_screen.dart';
 import '../screens/leagues/join_league_screen.dart';
 import '../screens/leagues/league_detail_screen.dart';
@@ -31,7 +38,9 @@ import '../screens/leagues/league_management_screen.dart';
 import '../screens/leagues/create_team_screen.dart';
 import '../screens/leagues/league_standings_screen.dart';
 import '../screens/leagues/league_calendar_screen.dart';
+import '../screens/teams/my_team_screen.dart';
 import '../screens/players/players_list_standalone_screen.dart';
+import '../screens/players/listone_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/notifications/notification_settings_screen.dart';
 import '../screens/news/news_detail_screen.dart';
@@ -49,6 +58,9 @@ GoRouter createRouter(AuthProvider auth) {
           state.matchedLocation == '/reset-password';
       if (!isLoggedIn && !isAuthRoute) return '/splash';
       if (isLoggedIn && isAuthRoute && state.matchedLocation != '/splash') return '/home';
+      // Redirect vecchie tab verso home (nuova shell ha Home, Scores, Asta, Leghe, Altro)
+      final loc = state.matchedLocation;
+      if (loc == '/live' || loc == '/team' || loc == '/standings' || loc == '/news') return '/home';
       return null;
     },
     routes: [
@@ -76,18 +88,22 @@ GoRouter createRouter(AuthProvider auth) {
         },
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => MainShellScreen(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => MainShell(navigationShell: navigationShell),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (c, s) => const HomeTab())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/live', builder: (c, s) => const LiveTab())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/team', builder: (c, s) => const TeamTab())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/standings', builder: (c, s) => const StandingsTab())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/news', builder: (c, s) => const NewsTab())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (c, s) => const HomeScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/scores', builder: (c, s) => const PlaceholderTab(title: 'Scores'))]),
+          StatefulShellBranch(routes: [GoRoute(path: '/asta', builder: (c, s) => const AuctionTabScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/leghe', builder: (c, s) => const PlaceholderTab(title: 'Leghe'))]),
+          StatefulShellBranch(routes: [GoRoute(path: '/altro', builder: (c, s) => const PlaceholderTab(title: 'Altro'))]),
         ],
       ),
       GoRoute(
         path: '/leagues',
         builder: (context, state) => const LeaguesScreen(),
+      ),
+      GoRoute(
+        path: '/leagues/new',
+        builder: (context, state) => const NewLeagueChoiceScreen(),
       ),
       GoRoute(
         path: '/leagues/create',
@@ -133,6 +149,27 @@ GoRouter createRouter(AuthProvider auth) {
         },
       ),
       GoRoute(
+        path: '/league/:leagueId/my-team',
+        builder: (context, state) {
+          final leagueId = state.pathParameters['leagueId'] ?? '';
+          final extra = state.extra as List?;
+          if (extra == null || extra.length < 2) {
+            return const SizedBox.shrink(); // fallback; in practice push is done with extra
+          }
+          final league = extra[0] as FantasyLeagueModel;
+          final myStanding = extra[1] as StandingModel;
+          final standings = extra.length > 2
+              ? (extra[2] as List?)?.cast<StandingModel>() ?? <StandingModel>[]
+              : <StandingModel>[];
+          return MyTeamScreen(
+            leagueId: leagueId,
+            league: league,
+            myStanding: myStanding,
+            standings: standings,
+          );
+        },
+      ),
+      GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
       ),
@@ -146,7 +183,7 @@ GoRouter createRouter(AuthProvider auth) {
       ),
       GoRoute(
         path: '/standings/serie-a',
-        builder: (context, state) => const SerieAStandingsScreen(),
+        builder: (context, state) => const StandingsScreen(),
       ),
       GoRoute(
         path: '/standings/fantasy',
@@ -175,6 +212,45 @@ GoRouter createRouter(AuthProvider auth) {
         builder: (context, state) {
           final leagueId = state.pathParameters['leagueId'] ?? '';
           return AuctionScreen(leagueId: leagueId);
+        },
+      ),
+      GoRoute(
+        path: '/league/:leagueId/auction/live',
+        builder: (context, state) {
+          final leagueId = state.pathParameters['leagueId'] ?? '';
+          final league = state.extra as FantasyLeagueModel?;
+          final auctionType = league?.auctionType ?? 'classic';
+          return AuctionLiveScreen(leagueId: leagueId, auctionType: auctionType);
+        },
+      ),
+      GoRoute(
+        path: '/league/:leagueId/auction/config',
+        builder: (context, state) {
+          final leagueId = state.pathParameters['leagueId'] ?? '';
+          final league = state.extra as FantasyLeagueModel?;
+          return AuctionConfigScreen(leagueId: leagueId, league: league);
+        },
+      ),
+      GoRoute(
+        path: '/league/:leagueId/auction/turn',
+        builder: (context, state) {
+          final leagueId = state.pathParameters['leagueId'] ?? '';
+          return AuctionTurnScreen(leagueId: leagueId);
+        },
+      ),
+      GoRoute(
+        path: '/league/:leagueId/auction/results/:turnNumber',
+        builder: (context, state) {
+          final leagueId = state.pathParameters['leagueId'] ?? '';
+          final turnNumber = int.tryParse(state.pathParameters['turnNumber'] ?? '') ?? 1;
+          return AuctionResultsScreen(leagueId: leagueId, turnNumber: turnNumber);
+        },
+      ),
+      GoRoute(
+        path: '/league/:leagueId/auction/overview',
+        builder: (context, state) {
+          final leagueId = state.pathParameters['leagueId'] ?? '';
+          return AuctionOverviewScreen(leagueId: leagueId);
         },
       ),
       GoRoute(
@@ -220,6 +296,10 @@ GoRouter createRouter(AuthProvider auth) {
           final articleUrl = state.extra as String? ?? '';
           return NewsDetailScreen(articleUrl: articleUrl);
         },
+      ),
+      GoRoute(
+        path: '/listone',
+        builder: (context, state) => const ListoneScreen(),
       ),
     ],
   );

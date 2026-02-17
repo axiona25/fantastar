@@ -20,10 +20,9 @@ class PlayerListTile extends StatelessWidget {
 
   Widget _buildLeading(BuildContext context) {
     return PlayerAvatar(
-      cutoutUrl: player.cutoutUrl,
-      photoUrl: player.photoUrl,
-      playerName: player.name,
+      playerId: player.id,
       role: player.position,
+      playerName: player.name,
       teamColor: getTeamColor(player.realTeamName),
       size: kPlayerListTilePhotoSize,
     );

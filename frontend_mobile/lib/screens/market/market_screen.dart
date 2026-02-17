@@ -397,10 +397,9 @@ class _FreeAgentRow extends StatelessWidget {
     final priceLabel = priceCr == player.initialPrice ? '$priceCr cr' : '${player.initialPrice.toStringAsFixed(1)} cr';
     return ListTile(
       leading: PlayerAvatar(
-        cutoutUrl: player.cutoutUrl,
-        photoUrl: player.photoUrl,
-        playerName: player.name,
+        playerId: player.id,
         role: player.position,
+        playerName: player.name,
         teamColor: getTeamColor(player.realTeamName),
         size: 40,
       ),

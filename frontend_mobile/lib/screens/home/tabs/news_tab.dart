@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../models/news.dart';
 import '../../../services/news_service.dart';
+import '../../../utils/html_utils.dart';
 import '../../../utils/error_utils.dart';
 import '../../../widgets/news_placeholder_image.dart';
 import '../../../app/constants.dart';
@@ -149,7 +150,7 @@ class _NewsCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    article.title,
+                    cleanHtml(article.title),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -159,7 +160,7 @@ class _NewsCard extends StatelessWidget {
                   if (article.summary != null && article.summary!.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(
-                      article.summary!,
+                      cleanHtml(article.summary!),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.grey.shade700,
                           ),

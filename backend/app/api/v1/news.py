@@ -1,7 +1,8 @@
 """
 API News: feed articoli da RSS (tabella news_articles, popolata da sync_news);
 articolo singolo via scraping GET /news/article?url=...
-Se lo scraper trova un'immagine e l'articolo nel DB non ne ha, aggiorna image_url nel DB.
+Solo Serie A maschile: filtra per keyword include/esclude.
+Titolo e summary in response vengono puliti da tag HTML (anche per dati già in DB).
 """
 from typing import Annotated
 
@@ -13,8 +14,27 @@ from app.database import get_db
 from app.models.news_article import NewsArticle
 from app.schemas.news import NewsItemResponse, ArticleDetailResponse
 from app.services.article_scraper import fetch_article
+from app.utils.html_utils import clean_html
 
 router = APIRouter(prefix="/news", tags=["news"])
+
+# Filtro Serie A maschile (stesso criterio di sync_news)
+_NEWS_EXCLUDE = (
+    "women", "femminile", "serie a women", "serie b", "serie c", "primavera",
+)
+_NEWS_INCLUDE = (
+    "serie a", "campionato",
+    "napoli", "inter", "milan", "juventus", "atalanta", "lazio", "roma",
+    "fiorentina", "bologna", "torino", "genoa", "cagliari", "empoli", "como",
+    "verona", "parma", "lecce", "venezia", "monza", "udinese",
+)
+
+
+def _is_serie_a_article(title: str | None, summary: str | None) -> bool:
+    text = ((title or "") + " " + (summary or "")).lower()
+    if any(ex in text for ex in _NEWS_EXCLUDE):
+        return False
+    return any(inc in text for inc in _NEWS_INCLUDE)
 
 
 @router.get("", response_model=list[NewsItemResponse])
@@ -23,17 +43,30 @@ async def list_news(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     db: Annotated[AsyncSession, Depends(get_db)] = None,
 ):
-    """Lista articoli news (più recenti prima). Opzionale filtro per source."""
+    """Lista articoli news Serie A maschile (più recenti prima). Opzionale filtro per source."""
     q = (
         select(NewsArticle)
         .order_by(NewsArticle.published_at.desc().nullslast(), NewsArticle.id.desc())
-        .limit(limit)
+        .limit(limit * 2)
     )
     if source:
         q = q.where(NewsArticle.source == source)
     r = await db.execute(q)
     rows = r.scalars().all()
-    return [NewsItemResponse.model_validate(x) for x in rows]
+    filtered = [x for x in rows if _is_serie_a_article(x.title, x.summary)]
+    # Pulisci title/summary da tag HTML (anche per articoli già in DB)
+    return [
+        NewsItemResponse(
+            id=x.id,
+            title=clean_html(x.title or ""),
+            summary=clean_html(x.summary or "") if x.summary else None,
+            url=x.url,
+            source=x.source,
+            image_url=x.image_url,
+            published_at=x.published_at,
+        )
+        for x in filtered[:limit]
+    ]
 
 
 @router.get("/sources", response_model=list[str])

@@ -709,10 +709,9 @@ class _PlayerCard extends StatelessWidget {
         child: Column(
           children: [
             PlayerAvatar(
-              cutoutUrl: player.cutoutUrl,
-              photoUrl: player.photoUrl,
-              playerName: player.name,
+              playerId: player.id,
               role: player.role,
+              playerName: player.name,
               teamColor: getTeamColor(player.team),
               size: 120,
             ),

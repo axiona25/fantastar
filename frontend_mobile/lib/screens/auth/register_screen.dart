@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -46,39 +47,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
       body: FantastarBackground(
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8, top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textDark, size: 24),
-                    onPressed: () => context.pop(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textDark, size: 24),
+                      onPressed: () => context.pop(),
+                    ),
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Crea un account!',
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
+                  const SizedBox(height: 12),
+                  // Logo centrato come login
+                  Center(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 168,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const SizedBox(
+                        height: 168,
+                        width: 168,
+                        child: Center(
+                          child: Text(
+                            'F',
+                            style: TextStyle(
+                              fontSize: 60,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      'Crea un account',
+                      style: GoogleFonts.poppins(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Card form
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     decoration: BoxDecoration(
                       color: AppColors.cardBg,
                       borderRadius: BorderRadius.circular(20),
@@ -92,6 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         FantastarInput(
                           label: 'Nome utente',
@@ -99,8 +125,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           hint: 'Il tuo username',
                           prefixIcon: const Icon(Icons.person_outline),
                           autocorrect: false,
+                          compact: true,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         FantastarInput(
                           label: 'Email',
                           controller: _emailController,
@@ -108,22 +135,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           prefixIcon: const Icon(Icons.email_outlined),
                           keyboardType: TextInputType.emailAddress,
                           autocorrect: false,
+                          compact: true,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         FantastarInput(
                           label: 'Password',
                           controller: _passwordController,
                           hint: '••••••••',
                           prefixIcon: const Icon(Icons.lock_outline),
                           obscureText: true,
+                          compact: true,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         FantastarInput(
                           label: 'Conferma Password',
                           controller: _confirmPasswordController,
                           hint: '••••••••',
                           prefixIcon: const Icon(Icons.lock_outline),
                           obscureText: true,
+                          compact: true,
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -173,32 +203,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Hai già un account? ', style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
-                    GestureDetector(
-                      onTap: () => context.pop(),
-                      child: const Text(
-                        'Accedi',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Hai già un account? ', style: TextStyle(color: AppColors.textGrey, fontSize: 14)),
+                        GestureDetector(
+                          onTap: () => context.pop(),
+                          child: const Text(
+                            'Accedi',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
+    ),
     );
   }
 }

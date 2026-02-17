@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -54,7 +55,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final size = MediaQuery.of(context).size;
     final logoSize = (size.width * 0.42).clamp(300.0, double.infinity);
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
       body: FantastarBackground(
         child: Center(
           child: AnimatedBuilder(
@@ -89,6 +92,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           ),
         ),
       ),
+    ),
     );
   }
 }

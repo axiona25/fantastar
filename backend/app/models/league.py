@@ -34,3 +34,7 @@ class FantasyLeague(Base):
         UUID(as_uuid=True), ForeignKey("fantasy_leagues.id", ondelete="SET NULL"), nullable=True
     )
     auto_created: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    start_matchday: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    calendar_generated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    asta_started: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    auction_type: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)  # 'classic' = rilanci, 'random' = busta chiusa

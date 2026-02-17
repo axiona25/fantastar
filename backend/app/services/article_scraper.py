@@ -3,12 +3,15 @@ Scraping articolo da URL: titolo, sottotitolo, autore, data, immagine, body HTML
 Usa httpx + BeautifulSoup; estrazione generica (og:*, article, main, ecc.).
 Pulizia body: solo tag consentiti (p, h2, h3, img, blockquote, ul, ol, li, a),
 rimozione nav/header/footer/sidebar/menu/widget/social/comment/ad e testo "Skip to content".
+Titolo e subtitle vengono puliti da tag HTML (clean_html).
 """
 import re
 from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
+
+from app.utils.html_utils import clean_html
 
 # Tag da rimuovere sempre (non tenere il contenuto)
 STRIP_TAGS = {"script", "style", "nav", "header", "footer", "aside", "iframe"}
@@ -233,5 +236,9 @@ async def fetch_article(url: str, timeout: float = 15.0) -> dict:
         body_el = body_soup.find("body") or body_soup
         _clean_body_tree(body_el, base_url)
         result["body_html"] = str(body_el).strip()
+
+    # Pulizia titolo e subtitle da eventuali tag/entities
+    result["title"] = clean_html(result["title"])
+    result["subtitle"] = clean_html(result["subtitle"])
 
     return result

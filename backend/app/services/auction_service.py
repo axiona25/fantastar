@@ -17,6 +17,7 @@ from app.database import AsyncSessionLocal
 from app.models.auction_session import AuctionSession, AUCTION_CATEGORY_ORDER
 from app.models.auction_bid import AuctionBid
 from app.models.auction_result import AuctionResult
+from app.models.auction_purchase import AuctionPurchase
 from app.models.fantasy_team import FantasyTeam
 from app.models.fantasy_roster import FantasyRoster
 from app.models.player import Player
@@ -463,6 +464,12 @@ async def _do_expire(db: AsyncSession, session_id: int) -> dict | None:
         purchase_price=amount,
         is_active=True,
     ))
+    db.add(AuctionPurchase(
+        league_id=session.league_id,
+        team_id=team.id,
+        player_id=player_id,
+        price=int(amount),
+    ))
     team.budget_remaining = team.budget_remaining - amount
     session.current_player_id = None
     session.timer_ends_at = None
@@ -695,9 +702,18 @@ async def get_status(db: AsyncSession, league_id: UUID, current_user_id: UUID | 
         prow = rp.one_or_none()
         if prow:
             real_team_name = None
+            real_team_logo_url = None
+            real_team_short_name = None
             if prow[8]:
-                rtn = await db.execute(select(RealTeam.name).where(RealTeam.id == prow[8]))
-                real_team_name = rtn.scalar_one_or_none()
+                rtn = await db.execute(
+                    select(RealTeam.name, RealTeam.short_name, RealTeam.tla, RealTeam.crest_local, RealTeam.crest_url).where(RealTeam.id == prow[8])
+                )
+                rt_row = rtn.one_or_none()
+                if rt_row:
+                    real_team_name = rt_row[0]
+                    real_team_short_name = (rt_row[1] or rt_row[2] or (rt_row[0][:3] if rt_row[0] else None))
+                    crest_local, crest_url = rt_row[3], rt_row[4]
+                    real_team_logo_url = f"/static/{crest_local}" if crest_local else (crest_url or "")
             photo_url = f"/static/{prow[4]}" if prow[4] else prow[3]
             cutout_url = f"/static/{prow[6]}" if prow[6] else prow[5]
             out["current_player"] = {
@@ -708,6 +724,8 @@ async def get_status(db: AsyncSession, league_id: UUID, current_user_id: UUID | 
                 "photo_url": photo_url,
                 "cutout_url": cutout_url,
                 "base_price": prow[7] or Decimal("1"),
+                "real_team_logo_url": real_team_logo_url or None,
+                "real_team_short_name": real_team_short_name,
             }
         if session.timer_ends_at:
             out["timer_remaining"] = max(0, int((session.timer_ends_at - _now()).total_seconds()))

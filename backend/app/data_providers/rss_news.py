@@ -2,6 +2,7 @@
 Provider RSS News - Feed calcio italiano.
 Usa feedparser. Feed testati e funzionanti.
 Estrae image_url da media_content, media_thumbnail, enclosure, o prima <img> in summary/content.
+Pulizia title/summary: rimozione tag HTML e HTML entities (clean_html).
 """
 import asyncio
 import logging
@@ -11,6 +12,8 @@ from typing import List, Dict, Any
 
 import feedparser
 from bs4 import BeautifulSoup
+
+from app.utils.html_utils import clean_html
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +93,7 @@ def _extract_image_url(entry) -> str | None:
 
 
 def _parse_entry(entry, source: str) -> Dict[str, Any]:
-    """Normalizza una entry feed in formato comune."""
+    """Normalizza una entry feed in formato comune. Pulisce title e summary da tag HTML."""
     published = None
     if hasattr(entry, "published_parsed") and entry.published_parsed:
         try:
@@ -98,9 +101,11 @@ def _parse_entry(entry, source: str) -> Dict[str, Any]:
         except Exception:
             pass
     image_url = _extract_image_url(entry)
+    raw_title = getattr(entry, "title", "") or ""
+    raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
     return {
-        "title": getattr(entry, "title", "") or "",
-        "summary": getattr(entry, "summary", "") or getattr(entry, "description", "") or "",
+        "title": clean_html(raw_title),
+        "summary": clean_html(raw_summary),
         "url": getattr(entry, "link", "") or "",
         "source": source,
         "image_url": image_url,

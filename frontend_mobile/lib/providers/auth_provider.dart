@@ -55,7 +55,7 @@ class AuthProvider with ChangeNotifier {
       _error = _errorFromDio(e);
       _loading = false;
       notifyListeners();
-      return false;
+      rethrow;
     }
   }
 
@@ -86,6 +86,22 @@ class AuthProvider with ChangeNotifier {
 
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  /// Login mock per sviluppo: imposta un utente fittizio senza chiamare il backend.
+  /// Nome mostrato in home: "Ciao, Marco" (come design originale).
+  void setMockLoggedIn(String email) {
+    _user = UserModel(
+      id: 'mock-${email.hashCode.abs()}',
+      email: email,
+      username: 'Marco',
+      isActive: true,
+      isAdmin: false,
+      createdAt: DateTime.now(),
+    );
+    _error = null;
+    _loading = false;
     notifyListeners();
   }
 }

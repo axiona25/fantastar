@@ -1,4 +1,4 @@
-/// Riga classifica Serie A (GET /stats/standings).
+/// Riga classifica Serie A (GET /standings/serie-a o GET /stats/standings).
 class StandingRow {
   final int position;
   final String? crest;
@@ -9,6 +9,7 @@ class StandingRow {
   final int lost;
   final int goalsFor;
   final int goalsAgainst;
+  final int played;
 
   int get goalDifference => goalsFor - goalsAgainst;
 
@@ -22,19 +23,34 @@ class StandingRow {
     required this.lost,
     required this.goalsFor,
     required this.goalsAgainst,
+    this.played = 0,
   });
 
+  /// Logo squadra: team_logo (nuovo endpoint) o crest (stats/standings).
+  String? get teamLogo => crest;
+
   factory StandingRow.fromJson(Map<String, dynamic> json) {
+    final position = (json['rank'] as num?)?.toInt() ?? (json['position'] as num?)?.toInt() ?? 0;
+    final crest = json['team_logo'] as String? ?? json['crest'] as String?;
+    final teamName = json['team_name'] as String? ?? '';
+    final points = (json['points'] as num?)?.toInt() ?? 0;
+    final won = (json['wins'] as num?)?.toInt() ?? (json['won'] as num?)?.toInt() ?? 0;
+    final draw = (json['draws'] as num?)?.toInt() ?? (json['draw'] as num?)?.toInt() ?? 0;
+    final lost = (json['losses'] as num?)?.toInt() ?? (json['lost'] as num?)?.toInt() ?? 0;
+    final goalsFor = (json['goals_for'] as num?)?.toInt() ?? 0;
+    final goalsAgainst = (json['goals_against'] as num?)?.toInt() ?? 0;
+    final played = (json['played'] as num?)?.toInt() ?? won + draw + lost;
     return StandingRow(
-      position: (json['position'] as num?)?.toInt() ?? 0,
-      crest: json['crest'] as String?,
-      teamName: json['team_name'] as String? ?? '',
-      points: (json['points'] as num?)?.toInt() ?? 0,
-      won: (json['won'] as num?)?.toInt() ?? 0,
-      draw: (json['draw'] as num?)?.toInt() ?? 0,
-      lost: (json['lost'] as num?)?.toInt() ?? 0,
-      goalsFor: (json['goals_for'] as num?)?.toInt() ?? 0,
-      goalsAgainst: (json['goals_against'] as num?)?.toInt() ?? 0,
+      position: position,
+      crest: crest,
+      teamName: teamName,
+      points: points,
+      won: won,
+      draw: draw,
+      lost: lost,
+      goalsFor: goalsFor,
+      goalsAgainst: goalsAgainst,
+      played: played,
     );
   }
 }

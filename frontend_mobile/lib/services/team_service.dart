@@ -9,11 +9,21 @@ class TeamService {
 
   final AuthService auth;
 
-  Future<FantasyTeamModel> createTeam(String leagueId, String name) async {
-    final response = await auth.dio.post(
-      '/teams',
-      data: {'league_id': leagueId, 'name': name},
-    );
+  Future<FantasyTeamModel> createTeam(
+    String leagueId,
+    String name, {
+    String? logoUrl,
+    String? coachName,
+    String? coachAvatarUrl,
+  }) async {
+    final data = <String, dynamic>{
+      'league_id': leagueId,
+      'name': name,
+    };
+    if (logoUrl != null) data['logo_url'] = logoUrl;
+    if (coachName != null) data['coach_name'] = coachName;
+    if (coachAvatarUrl != null) data['coach_avatar_url'] = coachAvatarUrl;
+    final response = await auth.dio.post('/teams', data: data);
     return FantasyTeamModel.fromJson(response.data as Map<String, dynamic>);
   }
 

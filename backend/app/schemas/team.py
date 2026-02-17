@@ -12,6 +12,9 @@ from pydantic import BaseModel, Field, field_validator
 class TeamCreate(BaseModel):
     league_id: UUID
     name: str = Field(..., min_length=1, max_length=100)
+    logo_url: Optional[str] = None
+    coach_name: Optional[str] = None
+    coach_avatar_url: Optional[str] = None
 
 
 class TeamResponse(BaseModel):
@@ -20,6 +23,9 @@ class TeamResponse(BaseModel):
     user_id: UUID
     name: str
     logo_url: Optional[str] = None
+    coach_name: Optional[str] = None
+    coach_avatar_url: Optional[str] = None
+    is_configured: bool = False
     budget_remaining: Decimal
     total_points: int
     wins: int

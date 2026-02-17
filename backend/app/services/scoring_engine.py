@@ -25,6 +25,7 @@ from app.models.fantasy_player_score import FantasyPlayerScore
 from app.models.fantasy_calendar import FantasyCalendar
 from app.models.league import FantasyLeague
 from app.models.player_ai_rating import PlayerAIRating
+from app.models.serie_a_postponed import SerieAPostponed
 
 # --- Punteggio base (da match_events) ---
 BASE_SCORING: dict[str, Any] = {
@@ -87,6 +88,7 @@ class PlayerScoreResult:
     minutes_played: int = 0
     played: bool = False  # True se ha giocato (minuti o eventi)
     ai_rating_bonus: Decimal = field(default_factory=lambda: _decimal(0))
+    is_postponed: bool = False  # True = 6 politico (partita Serie A rinviata)
 
 
 @dataclass
@@ -136,6 +138,23 @@ def _decimal(v: float | Decimal) -> Decimal:
     return Decimal(str(v))
 
 
+async def get_postponed_team_ids(db: AsyncSession, matchday: int) -> set[int]:
+    """
+    Ritorna l'insieme degli ID delle squadre reali (real_teams) che hanno la partita
+    rinviata in una data giornata di Serie A. Per la regola 6 politico.
+    """
+    r = await db.execute(
+        select(SerieAPostponed.home_team_id, SerieAPostponed.away_team_id).where(
+            SerieAPostponed.matchday == matchday
+        )
+    )
+    ids: set[int] = set()
+    for row in r.all():
+        ids.add(row[0])
+        ids.add(row[1])
+    return ids
+
+
 def calculate_fantasy_goals(total_score: float | Decimal, threshold: float = 66, step: float = 8) -> int:
     """Converte punteggio totale in gol fantasy (soglia e step configurabili)."""
     t = float(total_score)
@@ -150,16 +169,33 @@ class ScoringEngine:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def calculate_player_score(self, player_id: int, match_id: int) -> PlayerScoreResult | None:
+    async def calculate_player_score(
+        self,
+        player_id: int,
+        match_id: int,
+        postponed_team_ids: set[int] | None = None,
+    ) -> PlayerScoreResult | None:
         """
         Calcola punteggio di un giocatore per una partita.
-        Usa match_events (base) e player_stats (avanzato). Ritorna None se giocatore o partita non trovati.
+        Se postponed_team_ids contiene la squadra reale del giocatore → 6 politico (partita rinviata).
+        Altrimenti usa match_events (base) e player_stats (avanzato).
         """
         r = await self.db.execute(select(Player, Match).where(Player.id == player_id, Match.id == match_id))
         row = r.one_or_none()
         if not row:
             return None
         player, match = row
+        if postponed_team_ids is not None and player.real_team_id is not None and player.real_team_id in postponed_team_ids:
+            return PlayerScoreResult(
+                player_id=player_id,
+                match_id=match_id,
+                matchday=match.matchday,
+                base_score=_decimal(6),
+                advanced_score=_decimal(0),
+                total_score=_decimal(6),
+                is_postponed=True,
+                played=True,
+            )
         position = (player.position or "CEN")[:3].upper()
         if position not in ("POR", "DIF", "CEN", "ATT"):
             position = "CEN"
@@ -275,17 +311,18 @@ class ScoringEngine:
             minutes_played=minutes_played,
             played=played,
             ai_rating_bonus=ai_bonus,
+            is_postponed=False,
         )
 
-    async def _get_match_for_player_in_matchday(self, player_id: int, matchday: int) -> int | None:
-        """Ritorna match_id della partita in cui il giocatore ha giocato in questa giornata (squadra reale)."""
+    async def _get_match_for_player_in_matchday(self, player_id: int, serie_a_matchday: int) -> int | None:
+        """Ritorna match_id della partita Serie A in cui il giocatore ha giocato in questa giornata (squadra reale)."""
         r = await self.db.execute(select(Player.real_team_id).where(Player.id == player_id))
         real_team_id = r.scalar_one_or_none()
         if not real_team_id:
             return None
         r2 = await self.db.execute(
             select(Match.id).where(
-                Match.matchday == matchday,
+                Match.matchday == serie_a_matchday,
                 or_(Match.home_team_id == real_team_id, Match.away_team_id == real_team_id),
             )
         )
@@ -298,16 +335,18 @@ class ScoringEngine:
         league_id: Any = None,
         threshold: float = 66,
         step: float = 8,
+        serie_a_matchday: int | None = None,
+        postponed_team_ids: set[int] | None = None,
     ) -> TeamScoreResult | None:
         """
         Calcola punteggio squadra fantasy per una giornata.
-        Applica sostituzione panchina: titolare non in campo → primo panchinaro stesso ruolo (bench_order).
-        Se league_id è fornito, calcola anche avversario e risultato (W/D/L).
+        serie_a_matchday = giornata Serie A (se None si usa matchday). postponed_team_ids → 6 politico.
         """
         r = await self.db.execute(select(FantasyTeam).where(FantasyTeam.id == fantasy_team_id))
         team = r.scalar_one_or_none()
         if not team:
             return None
+        effective_serie_a = serie_a_matchday if serie_a_matchday is not None else matchday
 
         # Lineup: titolari + panchina ordinata
         lineup = await self.db.execute(
@@ -339,10 +378,25 @@ class ScoringEngine:
         total_score = _decimal(0)
 
         for i, (player_id, position, _) in enumerate(starters[:11]):
-            match_id = await self._get_match_for_player_in_matchday(player_id, matchday)
+            match_id = await self._get_match_for_player_in_matchday(player_id, effective_serie_a)
             score_result: PlayerScoreResult | None = None
             if match_id:
-                score_result = await self.calculate_player_score(player_id, match_id)
+                score_result = await self.calculate_player_score(player_id, match_id, postponed_team_ids=postponed_team_ids)
+            if score_result is None and postponed_team_ids:
+                r_p = await self.db.execute(select(Player.real_team_id).where(Player.id == player_id))
+                real_tid = r_p.scalar_one_or_none()
+                if real_tid is not None and real_tid in postponed_team_ids:
+                    score_result = PlayerScoreResult(
+                        player_id=player_id,
+                        match_id=0,
+                        matchday=matchday,
+                        base_score=_decimal(6),
+                        advanced_score=_decimal(0),
+                        total_score=_decimal(6),
+                        is_starter=True,
+                        played=True,
+                        is_postponed=True,
+                    )
             if score_result is None:
                 score_result = PlayerScoreResult(
                     player_id=player_id,
@@ -361,8 +415,24 @@ class ScoringEngine:
                         continue
                     if b_pos != position:
                         continue
-                    b_match_id = await self._get_match_for_player_in_matchday(b_player_id, matchday)
-                    sub_score = await self.calculate_player_score(b_player_id, b_match_id) if b_match_id else None
+                    b_match_id = await self._get_match_for_player_in_matchday(b_player_id, effective_serie_a)
+                    sub_score = await self.calculate_player_score(b_player_id, b_match_id, postponed_team_ids=postponed_team_ids) if b_match_id else None
+                    if sub_score is None and postponed_team_ids:
+                        r_b = await self.db.execute(select(Player.real_team_id).where(Player.id == b_player_id))
+                        b_real_tid = r_b.scalar_one_or_none()
+                        if b_real_tid is not None and b_real_tid in postponed_team_ids:
+                            sub_score = PlayerScoreResult(
+                                player_id=b_player_id,
+                                match_id=0,
+                                matchday=matchday,
+                                base_score=_decimal(6),
+                                advanced_score=_decimal(0),
+                                total_score=_decimal(6),
+                                is_starter=False,
+                                was_subbed_in=True,
+                                played=True,
+                                is_postponed=True,
+                            )
                     if sub_score is None:
                         sub_score = PlayerScoreResult(
                             player_id=b_player_id,
@@ -393,6 +463,7 @@ class ScoringEngine:
                     "base_score": float(p.base_score),
                     "advanced_score": float(p.advanced_score),
                     "was_subbed_in": p.was_subbed_in,
+                    "is_postponed": p.is_postponed,
                 }
                 for p in player_scores
             ],
@@ -424,7 +495,10 @@ class ScoringEngine:
                 away_id = cal_row.away_team_id
                 opponent_id = away_id if fantasy_team_id == home_id else home_id
                 result.opponent_id = opponent_id
-                opp = await self.calculate_team_score(opponent_id, matchday, league_id=None, threshold=threshold, step=step)
+                opp = await self.calculate_team_score(
+                    opponent_id, matchday, league_id=None, threshold=threshold, step=step,
+                    serie_a_matchday=serie_a_matchday, postponed_team_ids=postponed_team_ids,
+                )
                 if opp:
                     result.opponent_score = opp.total_score
                     result.opponent_goals = opp.fantasy_goals
@@ -451,15 +525,22 @@ class ScoringEngine:
         rows = cal.scalars().all()
         league = await self.db.execute(select(FantasyLeague).where(FantasyLeague.id == league_id))
         league_obj = league.scalar_one_or_none()
+        if not league_obj:
+            return []
         threshold = float(league_obj.goal_threshold or 66)
         step = float(league_obj.goal_step or 8)
+        start_matchday = getattr(league_obj, "start_matchday", 1)
+        serie_a_matchday = start_matchday + (matchday - 1)
+        postponed_team_ids = await get_postponed_team_ids(self.db, serie_a_matchday)
         results_list: list[MatchResult] = []
         for fc in rows:
             home = await self.calculate_team_score(
-                fc.home_team_id, matchday, league_id=None, threshold=threshold, step=step
+                fc.home_team_id, matchday, league_id=None, threshold=threshold, step=step,
+                serie_a_matchday=serie_a_matchday, postponed_team_ids=postponed_team_ids,
             )
             away = await self.calculate_team_score(
-                fc.away_team_id, matchday, league_id=None, threshold=threshold, step=step
+                fc.away_team_id, matchday, league_id=None, threshold=threshold, step=step,
+                serie_a_matchday=serie_a_matchday, postponed_team_ids=postponed_team_ids,
             )
             if not home or not away:
                 continue

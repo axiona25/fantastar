@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +10,7 @@ import '../../widgets/fantastar_background.dart';
 import '../../widgets/fantastar_button.dart';
 import '../../widgets/fantastar_input.dart';
 
-/// Recupero password: email → Invia Link → banner successo "Link di recupero inviato!"
+/// Recupero password: stesso layout di login (logo + titolo), poi form.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -51,144 +52,154 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
       body: FantastarBackground(
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8, top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textDark, size: 24),
-                    onPressed: () => context.go('/login'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textDark, size: 24),
+                      onPressed: () => context.go('/login'),
+                    ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 16),
-                      // Icona scudo con lucchetto (stile 3D, viola/azzurro con glow)
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.4),
-                              blurRadius: 24,
-                              spreadRadius: 2,
+                  const SizedBox(height: 12),
+                  // Logo centrato come login
+                  Center(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 168,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const SizedBox(
+                        height: 168,
+                        width: 168,
+                        child: Center(
+                          child: Text(
+                            'F',
+                            style: TextStyle(
+                              fontSize: 60,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textDark,
                             ),
-                            BoxShadow(
-                              color: const Color(0xFF7C4DFF).withOpacity(0.3),
-                              blurRadius: 16,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFB39DDB),
-                              Color(0xFF7C4DFF),
-                              Color(0xFF5E35B1),
-                            ],
                           ),
                         ),
-                        child: const Icon(
-                          Icons.lock_outline,
-                          size: 56,
-                          color: Colors.white,
-                        ),
                       ),
-                      const SizedBox(height: 28),
-                      Text(
-                        'Recupero Password',
-                        style: GoogleFonts.poppins(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textDark,
-                        ),
-                        textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      'Recupero Password',
+                      style: GoogleFonts.poppins(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Inserisci la tua email per ricevere il link di recupero.',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          color: AppColors.textGrey,
-                          height: 1.4,
-                        ),
-                        textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'Inserisci la tua email per ricevere il link di recupero.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: AppColors.textGrey,
+                        height: 1.4,
                       ),
-                      const SizedBox(height: 28),
-                      if (!_sent) ...[
-                        FantastarInput(
-                          label: 'Email',
-                          controller: _emailController,
-                          hint: 'esempio@email.com',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Card form
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            _error!,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
-                          ),
-                        ],
-                        const SizedBox(height: 24),
-                        FantastarButton(
-                          label: 'Invia Link',
-                          loading: _loading,
-                          onPressed: _sendLink,
-                        ),
-                      ] else ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.success.withOpacity(0.5)),
-                          ),
-                          child: Row(
+                      ],
+                    ),
+                    child: _sent
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.check_circle, color: AppColors.success, size: 28),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Link di recupero inviato! Controlla la tua casella email.',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    color: AppColors.textDark,
-                                    fontWeight: FontWeight.w500,
+                              Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: AppColors.success, size: 28),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Link di recupero inviato! Controlla la tua casella email.',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: AppColors.textDark,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              FantastarButton(
+                                label: 'Torna al Login',
+                                onPressed: () => context.go('/login'),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FantastarInput(
+                                label: 'Email',
+                                controller: _emailController,
+                                hint: 'esempio@email.com',
+                                prefixIcon: const Icon(Icons.email_outlined),
+                                keyboardType: TextInputType.emailAddress,
+                                autocorrect: false,
+                                compact: true,
+                              ),
+                              if (_error != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _error!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 13,
                                   ),
                                 ),
+                              ],
+                              const SizedBox(height: 20),
+                              FantastarButton(
+                                label: 'Invia Link',
+                                loading: _loading,
+                                onPressed: _sendLink,
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        FantastarButton(
-                          label: 'Torna al Login',
-                          onPressed: () => context.go('/login'),
-                        ),
-                      ],
-                    ],
                   ),
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -120,6 +120,8 @@ class AuctionStatusPlayer {
   final String? photoUrl;
   final String? cutoutUrl;
   final double basePrice;
+  final String? realTeamLogoUrl;
+  final String? realTeamShortName;
 
   const AuctionStatusPlayer({
     required this.id,
@@ -129,6 +131,8 @@ class AuctionStatusPlayer {
     this.photoUrl,
     this.cutoutUrl,
     required this.basePrice,
+    this.realTeamLogoUrl,
+    this.realTeamShortName,
   });
 
   factory AuctionStatusPlayer.fromJson(Map<String, dynamic> json) => AuctionStatusPlayer(
@@ -139,6 +143,8 @@ class AuctionStatusPlayer {
         photoUrl: json['photo_url'] as String?,
         cutoutUrl: json['cutout_url'] as String?,
         basePrice: num.tryParse(json['base_price']?.toString() ?? '')?.toDouble() ?? 1,
+        realTeamLogoUrl: json['real_team_logo_url'] as String?,
+        realTeamShortName: json['real_team_short_name'] as String?,
       );
 }
 

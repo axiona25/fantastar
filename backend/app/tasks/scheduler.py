@@ -18,6 +18,8 @@ from app.tasks.sync_news import sync_news
 from app.tasks.sync_players import sync_all_players
 from app.tasks.sync_availability import sync_availability_injuries, run_availability_after_matchday
 from app.tasks.sync_commentary import sync_live_commentary
+from app.services.auction_random_service import resolve_expired_turns
+from app.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +138,17 @@ async def _job_availability_after_matchday():
         logger.exception("_job_availability_after_matchday: %s", e)
 
 
+async def _job_resolve_auction_turns():
+    """Ogni minuto: risolvi turni asta random scaduti."""
+    try:
+        async with AsyncSessionLocal() as db:
+            count = await resolve_expired_turns(db, league_id=None)
+            if count:
+                logger.info("Asta random: risolti %d turni scaduti", count)
+    except Exception as e:
+        logger.exception("_job_resolve_auction_turns: %s", e)
+
+
 async def _job_import_gazzetta_ratings():
     """Ogni 2 ore: importa voti Gazzetta per partite FINISHED da 2+ ore."""
     try:
@@ -159,6 +172,7 @@ def start_scheduler():
     scheduler.add_job(_job_sync_availability_injuries, IntervalTrigger(hours=12), id="sync_availability_injuries", replace_existing=True)
     scheduler.add_job(_job_availability_after_matchday, IntervalTrigger(hours=6), id="availability_after_matchday", replace_existing=True)
     scheduler.add_job(_job_import_gazzetta_ratings, IntervalTrigger(hours=2), id="import_gazzetta_ratings", replace_existing=True)
+    scheduler.add_job(_job_resolve_auction_turns, IntervalTrigger(minutes=1), id="resolve_auction_turns", replace_existing=True)
     scheduler.start()
     logger.info("Scheduler started: sync_matches 2min, check_live 5min, standings 10min, news 15min, rosters weekly, availability 12h, suspensions 6h")
 

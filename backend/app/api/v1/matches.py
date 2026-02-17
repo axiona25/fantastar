@@ -251,9 +251,12 @@ async def get_match_ratings(
     away_name_to_photo: dict[str, str] = {}
     home_name_to_cutout: dict[str, str] = {}
     away_name_to_cutout: dict[str, str] = {}
+    home_name_to_id: dict[str, int] = {}
+    away_name_to_id: dict[str, int] = {}
     if home_team_id or away_team_id:
         r_players = await db.execute(
             select(
+                Player.id,
                 Player.name,
                 Player.position,
                 Player.real_team_id,
@@ -266,21 +269,25 @@ async def get_match_ratings(
             )
         )
         for row in r_players.all():
-            name, position, rtid = row[0], row[1], row[2]
-            photo_local, photo_url = row[3], row[4]
-            cutout_local, cutout_url = row[5], row[6]
+            pid, name, position, rtid = row[0], row[1], row[2], row[3]
+            photo_local, photo_url = row[4], row[5]
+            cutout_local, cutout_url = row[6], row[7]
             photo = f"/static/{photo_local}" if photo_local else (photo_url or "")
             cutout = f"/static/{cutout_local}" if cutout_local else (cutout_url or "")
             nq = _normalize_name_for_match(name) if name else ""
             if name and position:
                 if rtid == home_team_id:
                     home_db_players.append((name, (position or "CEN").upper()))
+                    if nq:
+                        home_name_to_id[nq] = pid
                     if nq and photo:
                         home_name_to_photo[nq] = photo
                     if nq and cutout:
                         home_name_to_cutout[nq] = cutout
                 elif rtid == away_team_id:
                     away_db_players.append((name, (position or "CEN").upper()))
+                    if nq:
+                        away_name_to_id[nq] = pid
                     if nq and photo:
                         away_name_to_photo[nq] = photo
                     if nq and cutout:
@@ -322,10 +329,16 @@ async def get_match_ratings(
         resolved = _resolve_role_from_db(row.get("name") or "", home_db_players)
         if resolved:
             row["position"] = resolved
+        nq = _normalize_name_for_match(row.get("name") or "")
+        if nq and nq in home_name_to_id:
+            row["player_id"] = home_name_to_id[nq]
     for row in result.get("away", {}).get("starters", []) + result.get("away", {}).get("bench", []):
         resolved = _resolve_role_from_db(row.get("name") or "", away_db_players)
         if resolved:
             row["position"] = resolved
+        nq = _normalize_name_for_match(row.get("name") or "")
+        if nq and nq in away_name_to_id:
+            row["player_id"] = away_name_to_id[nq]
 
     def to_rating_player(row: dict, photo_url: str | None = None, cutout_url: str | None = None) -> MatchRatingPlayer:
         ev = row.get("events") or {}
@@ -337,6 +350,7 @@ async def get_match_ratings(
         ]
         return MatchRatingPlayer(
             name=row.get("name", ""),
+            player_id=row.get("player_id"),
             role=(row.get("position") or "CEN").upper(),
             number=row.get("number"),
             live_rating=row.get("rating"),
